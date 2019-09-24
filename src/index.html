@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    <script src="/socket.io/socket.io.js"></script>
+<script>
+  var socket = io();
+  socket.emit('chat message',prompt("name", "user " + Math.round(Math.random() * 100)));
+
+  document.addEventListener("keydown", (e) => {
+    e = e || window.event;
+
+    if (e.keyCode == '38') {
+      socket.emit('direction',"up");
+    }
+    else if (e.keyCode == '40') {
+      socket.emit('direction',"down");
+        // down arrow
+    }
+    else if (e.keyCode == '37') {
+      socket.emit('direction',"left");
+       // left arrow
+    }
+    else if (e.keyCode == '39') {
+      socket.emit('direction',"right");
+       // right arrow
+    }
+
+  });
+</script>
+
+lol
+</body>
+</html>
