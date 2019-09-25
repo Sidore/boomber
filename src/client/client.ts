@@ -38,8 +38,8 @@ let currentUser, globalPlayers
     let cats : any = {}, state
 
 let app = new PIXI.Application({ 
-    width: 256, 
-    height: 256,                       
+    // width: 256, 
+    // height: 256,                       
     antialias: true, 
     transparent: false, 
     resolution: 1
@@ -48,8 +48,8 @@ let app = new PIXI.Application({
 
 function createPlayer(title) {
     let cat = new Sprite(resources["cat"].texture) as any;
-    cat.x = 56 + Math.round(Math.random() * 100);
-    cat.y = 56 + Math.round(Math.random() * 100);
+    cat.x = 100;
+    cat.y = 100;
 
     cat.vx = 0;
     cat.vy = 0;
@@ -70,6 +70,12 @@ function createPlayer(title) {
     cats[player].vx = typeof move.x === "number" ? move.x : cats[player].vx;
     cats[player].vy = typeof move.y === "number" ? move.y : cats[player].vy;
 
+  }
+
+  function removeUserHandler(player) {
+      console.log(`${player} has been removed`)
+    app.stage.removeChild(cats[player])
+    delete cats[player];
   }
 // let base = new PIXI.BaseTexture(anyImageObject),
 //     texture = new PIXI.Texture(base),
@@ -96,7 +102,6 @@ function loadProgressHandler(loader, resource) {
     for (let a in globalPlayers) {
         newPlayerHandler(globalPlayers[a].name);
       }
-
 
     let playerObj = createPlayer(currentUser);
     cats[currentUser] = playerObj;
@@ -157,6 +162,7 @@ function loadProgressHandler(loader, resource) {
             y : 5
         });
       };
+
       down.release = () => {
         socket.emit('direction', {
             x : 0,
@@ -189,8 +195,9 @@ function play(delta) {
         name : currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
       });
 
-      socket.on("new player", newPlayerHandler);
-        socket.on("move block", moveBlockHandler);
+    socket.on("new player", newPlayerHandler);
+    socket.on("move block", moveBlockHandler);
+    socket.on("remove user", removeUserHandler)
 
     loader
     .add("cat","http://localhost:3333/public/cat.png")
