@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "jsx": "react",
+        "lib": [
+            "es6",
+            "dom"
+        ],
+        "target": "es5",
+        "module": "commonjs",
+        "outDir": "./distServer"
+    },
+    "exclude": [
+        "src/client/**",
+        "src/tests/**",
+        "e2e"
+    ]
+    // "strict": true,
+    // "noUnusedLocals": true,
+    // "noUnusedParameters": true,
+    // "noImplicitReturns": true,
+    // "noFallthroughCasesInSwitch": true,
+    // "esModuleInterop": true
+}

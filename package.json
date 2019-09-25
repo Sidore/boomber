@@ -4,8 +4,10 @@
   "description": "airconcole реализация для игри бомбер, с екраном и телефонами как джосйтиками",
   "main": "index.js",
   "scripts": {
-    "server": "ts-node ./src/index.ts -watch",
-    "dev": "nodemon --watch"
+    "server": "ts-node ./src/server/index.ts -watch",
+    "dev": "nodemon --watch",
+    "client": "parcel src/client/index.html",
+    "build": "parcel build src/client/index.html --public-url /dist/ && tsc -p ."
   },
   "repository": {
     "type": "git",
@@ -19,13 +21,17 @@
   "homepage": "https://github.com/Sidore/boomber#readme",
   "dependencies": {
     "@types/express": "^4.17.1",
+    "@types/pixi.js": "^4.8.9",
     "@types/socket.io": "^2.1.2",
     "express": "^4.17.1",
+    "pixi.js": "^5.1.5",
     "socket.io": "^2.3.0",
+    "socket.io-client": "^2.3.0",
     "ts-node": "^8.4.1",
     "typescript": "^3.6.3"
   },
   "devDependencies": {
-    "nodemon": "^1.19.2"
+    "nodemon": "^1.19.2",
+    "parcel": "^1.12.3"
   }
 }
