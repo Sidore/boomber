@@ -59,13 +59,15 @@ io.on("connection", (socket) => {
         if (data && data.name) {
             userCollection[socket.id].name = data.name;
             io.emit("new player", userCollection[socket.id].name)
+        } else {
+            delete userCollection[socket.id];
         }
 
         console.log(data);
     })
 
     socket.on("direction", (data) => {
-        // console.log(userCollection[socket.id].name, data);
+        // console.log(55,socket.id,userCollection,   userCollection[socket.id].name, data);
         io.emit("move block", {
             player : userCollection[socket.id].name,
             move : data
@@ -74,8 +76,9 @@ io.on("connection", (socket) => {
 
     
 
-    socket.on('disconnect', () => {
-        console.log('user disconnected');
+    socket.on('disconnect', (data) => {
+        console.log(55, 'user disconnected', data, socket.id, userCollection );
+        if (userCollection[socket.id])
         io.emit("remove user", userCollection[socket.id].name)
     });
 })
