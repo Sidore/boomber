@@ -19,7 +19,8 @@ let app = new PIXI.Application({
     height: 681,                       
     antialias: true, 
     transparent: false, 
-    resolution: 1
+    resolution: 1,
+    backgroundColor: 0x008b00
   }
 );
 
@@ -32,22 +33,47 @@ function getRandomColor() {
     return color;
   }
 
-function createPlayer(title) {
+
+function playerImage(type?) : PIXI.Sprite[] {
+    if (type === undefined) {
+        type = Math.round(Math.random() * 8);
+    }
+
+    
+    let array = [];
+    
+
+    for (let i = 0; i < 7; i++) {
+        let T = resources["tileset"].texture;
+        let rectangle = new PIXI.Rectangle(type * 24, i* 24, 24, 24);
+        T.frame = rectangle;
+        
+        let sprite = new Sprite(T);
+        sprite.height = sprite.width = 40;
+        array.push(sprite);
+    }
+
+    return array;
+
+}
+
+function createPlayer(title: string) {
     let animals = new PIXI.Container() as any;
-    let cat = new Sprite(resources["cat"].texture) ;
+    // let catT = resources["tileset"].texture;
+    let typePlayer = Math.round(Math.random() * 8);
+    let cat = playerImage(typePlayer);
+
+    // let rectangle = new PIXI.Rectangle(x * 24, y* 24, 24, 24);
     let text = new PIXI.Text(title, new PIXI.TextStyle({fontFamily: "Arial",
     fontSize: 10,
     fill: "black"}));
     text.position.x = 5;
     text.position.y = 28;
-
-    cat.height = 30;
     animals.height =  40;
-    animals.width = cat.width = 40;
+    animals.width = 40;
     
 
-    var mask = new PIXI.Graphics().beginFill(+("0x" + getRandomColor())).drawRect(0,0, 40, 40).endFill();
-    animals.addChild(mask);
+    var mask = new PIXI.Graphics().beginFill(+("0x" + getRandomColor())).drawRect(0, 30, 40, 10).endFill();
 
     animals.x = 40;
     animals.y = 40
@@ -55,10 +81,13 @@ function createPlayer(title) {
 
     animals.vx = 0;
     animals.vy = 0;
+    animals.addChild(cat[0]);
+    animals.addChild(mask);
 
-    animals.addChild(cat);
     animals.addChild(text);
-
+    animals.playerTypes = cat;
+    animals.typePlayer = typePlayer
+    console.log(animals.typePlayer)
     return animals;
   }
 
@@ -440,19 +469,13 @@ function loadProgressHandler(loader, resource) {
     state(delta);
   }
 
-  function setup() {
-
-    socket.on("new player", newPlayerHandler);
-    socket.on("move block", moveBlockHandler);
-    socket.on("remove user", removeUserHandler)
-
-
+  function labirint() {
     for (let i = 0; i < 17; i++) {
         for (let j = 0; j < 17; j++ ) {
             if (i === 0 || j === 0 || i === 16 || j === 16 || (i % 2 !== 1 && j % 2 !== 1)) {
                 let rectangle = new PIXI.Graphics();
-                rectangle.lineStyle(1, 0xFF3300, 1);
-                rectangle.beginFill(0x66CCFF);
+                rectangle.lineStyle(1, 0x18181a, 1);
+                rectangle.beginFill(0xabaaac);
                 rectangle.drawRect(1, 1, 39 , 39);
                 rectangle.endFill();
                 rectangle.x = i * 40;
@@ -465,6 +488,16 @@ function loadProgressHandler(loader, resource) {
             }
         }
     }
+  }
+
+  function setup() {
+
+    socket.on("new player", newPlayerHandler);
+    socket.on("move block", moveBlockHandler);
+    socket.on("remove user", removeUserHandler)
+
+    labirint();
+    
 
     for (let a in globalPlayers) {
         newPlayerHandler(globalPlayers[a].name);
@@ -555,6 +588,30 @@ function play(delta) {
         cats[p].x += cats[p].vx;
         cats[p].y += cats[p].vy;
 
+        
+
+
+        if(cats[p].vx > 0) {
+            let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 4 * 24, 24, 24);
+            cats[p].children[0].texture.frame = rectangle;
+        } else if(cats[p].vx < 0) {
+            let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 8 * 24, 24, 24);
+            cats[p].children[0].texture.frame = rectangle;
+        } else if(cats[p].vy > 0) {
+            let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 1 * 24, 24, 24);
+            cats[p].children[0].texture.frame = rectangle;
+        } else if(cats[p].vy < 0) {
+            let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 10 * 24, 24, 24);
+            cats[p].children[0].texture.frame = rectangle;
+        } else if( cats[p].vy === 0 || cats[p].vx === 0) {
+            let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 0 * 24, 24, 24);
+            cats[p].children[0].texture.frame = rectangle;
+        }
+
+
+
+
+
         if (cats[p].vx || cats[p].vy || p == "1") {
             // console.log(p,cats[p].vx,cats[p].vy, cats[p].x, cats[p].y )
         } 
@@ -605,10 +662,9 @@ function play(delta) {
         name : currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
       });
 
-    
-
+     
     loader
-    .add("cat","http://localhost:3333/public/cat.png")
+    .add("tileset","http://localhost:3333/public/bomberman.png")
     .on("progress", loadProgressHandler)
     .load(setup);
   })
