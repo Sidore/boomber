@@ -15,13 +15,22 @@ let currentUser, globalPlayers
     let cats : any = {}, state, blocks = []
 
 let app = new PIXI.Application({ 
-    width: 680, 
-    height: 680,                       
+    width: 681, 
+    height: 681,                       
     antialias: true, 
     transparent: false, 
     resolution: 1
   }
 );
+
+function getRandomColor() {
+    var letters = '0123456789ABCDEF';
+    var color = '';
+    for (var i = 0; i < 6; i++) {
+      color += letters[Math.floor(Math.random() * 16)];
+    }
+    return color;
+  }
 
 function createPlayer(title) {
     let animals = new PIXI.Container() as any;
@@ -33,11 +42,11 @@ function createPlayer(title) {
     text.position.y = 28;
 
     cat.height = 30;
-    animals.height =  41;
+    animals.height =  40;
     animals.width = cat.width = 40;
     
 
-    var mask = new PIXI.Graphics().beginFill(0x8bc5ff).drawRect(0,0, 40, 41).endFill();
+    var mask = new PIXI.Graphics().beginFill(+("0x" + getRandomColor())).drawRect(0,0, 40, 40).endFill();
     animals.addChild(mask);
 
     animals.x = 40;
@@ -444,7 +453,7 @@ function loadProgressHandler(loader, resource) {
                 let rectangle = new PIXI.Graphics();
                 rectangle.lineStyle(1, 0xFF3300, 1);
                 rectangle.beginFill(0x66CCFF);
-                rectangle.drawRect(1, 1, 38 , 38);
+                rectangle.drawRect(1, 1, 39 , 39);
                 rectangle.endFill();
                 rectangle.x = i * 40;
                 rectangle.y = j * 40;
@@ -470,9 +479,11 @@ function loadProgressHandler(loader, resource) {
       right = board("ArrowRight"),
       down = board("ArrowDown");
 
+      let speed = 5;
+
       left.press = () => {
         socket.emit('direction', {
-            x : -5,
+            x : -speed,
             // y : 0
         });
         
@@ -488,7 +499,7 @@ function loadProgressHandler(loader, resource) {
       //Up
       up.press = () => {
         socket.emit('direction', {
-            y : -5,
+            y : -speed,
             // x : 0
         });
       };
@@ -502,7 +513,7 @@ function loadProgressHandler(loader, resource) {
       //Right
       right.press = () => {
         socket.emit('direction', {
-            x : 5,
+            x : speed,
             // y : 0
         });
       };
@@ -519,7 +530,7 @@ function loadProgressHandler(loader, resource) {
       down.press = () => {
         socket.emit('direction', {
             // x : 0,
-            y : 5
+            y : speed
         });
       };
 
@@ -575,11 +586,11 @@ function play(delta) {
             // console.log(hit)
 
             if ( hit === "top" || hit === "bottom") {
-                cats[p].vy = 0;
+                // cats[p].vy = 0;
             }
     
             if ( hit === "left" || hit === "right") {
-                cats[p].vx = 0;
+                // cats[p].vx = 0;
             }
         })
     }
