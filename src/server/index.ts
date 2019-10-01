@@ -74,7 +74,24 @@ io.on("connection", (socket) => {
         })
     })
 
-    
+    socket.on("bomb", (data) => {
+        let id = Math.round(Math.random() * 1000);
+        console.log("bomb",data);
+        
+        io.emit("bomb", {
+            id,
+            state: "set",
+            x: data.x,
+            y: data.y
+        });
+
+        setTimeout(() => {
+            io.emit("bomb", {
+                id,
+                state: "explode"
+            });
+        }, 2000)
+    })
 
     socket.on('disconnect', (data) => {
         console.log(55, 'user disconnected', data, socket.id, userCollection );

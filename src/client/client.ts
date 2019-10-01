@@ -4,7 +4,7 @@ import board from "./keyboard";
 // import cat from "./cat.png"
 
 const root = document.getElementById("app");
-let currentUser, globalPlayers
+let currentUser, globalPlayers, bombs = {}
 
   var socket = io("http://localhost:3333");
 
@@ -36,14 +36,14 @@ function getRandomColor() {
 
 function playerImage(type?) : PIXI.Sprite[] {
     if (type === undefined) {
-        type = Math.round(Math.random() * 8);
+        type = Math.round(Math.random() * 7);
     }
 
     
     let array = [];
     
 
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 1; i++) {
         let T = resources["tileset"].texture;
         let rectangle = new PIXI.Rectangle(type * 24, i* 24, 24, 24);
         T.frame = rectangle;
@@ -57,10 +57,69 @@ function playerImage(type?) : PIXI.Sprite[] {
 
 }
 
+function setBomb({id, x, y}) {
+    let rectangle = new PIXI.Graphics();
+                rectangle.lineStyle(1, 0xcccccc, 1);
+                rectangle.beginFill(0x000000);
+                rectangle.drawCircle(20,20,15);
+                rectangle.endFill();
+                rectangle.x = x;
+                rectangle.y = y;
+
+    bombs[id] = rectangle;
+    app.stage.addChild(rectangle);
+
+}
+
+function explodeBomb({id}) {
+    let b = bombs[id] as PIXI.Graphics;
+    b.lineStyle(1, 0xcccccc, 1);
+    b.beginFill(0xff0000);
+    b.drawRect(1,1,39,39);
+    b.endFill();
+    let cont = new PIXI.Graphics;
+
+    for(let p in cats) {
+        let player = cats[p];
+        cont.lineStyle(1, 0xcccccc, 1);
+        cont.beginFill(0xff0000);
+        cont.drawRect(1,1,119,119);
+        cont.endFill();
+        
+        cont.width = cont.height = 120;
+        cont.x = b.x - 40;
+        cont.y = b.y - 40;
+
+        app.stage.addChild(cont);
+
+        console.log(player, cont)
+        if (hitTestRectangle(player, cont)) {
+            console.log("hitBombZone");
+            app.stage.removeChild(player);
+            
+            delete cats[p];
+        }
+    }
+
+    setTimeout(() => {
+        app.stage.removeChild(b);
+        app.stage.removeChild(cont);
+
+    }, 1000);
+
+}
+
+function bombHandler(bomb) {
+    switch (bomb.state) {
+        case "set": setBomb(bomb); break;
+        case "explode": explodeBomb(bomb); break;
+    }
+}
+
 function createPlayer(title: string) {
     let animals = new PIXI.Container() as any;
     // let catT = resources["tileset"].texture;
-    let typePlayer = Math.round(Math.random() * 8);
+    let typePlayer = Math.round(Math.random() * 7);
     let cat = playerImage(typePlayer);
 
     // let rectangle = new PIXI.Rectangle(x * 24, y* 24, 24, 24);
@@ -76,8 +135,7 @@ function createPlayer(title: string) {
     var mask = new PIXI.Graphics().beginFill(+("0x" + getRandomColor())).drawRect(0, 30, 40, 10).endFill();
 
     animals.x = 40;
-    animals.y = 40
-    ;
+    animals.y = 40;
 
     animals.vx = 0;
     animals.vy = 0;
@@ -100,10 +158,13 @@ function createPlayer(title: string) {
   }
 
   function moveBlockHandler({player, move}) {
-    console.log("moveBlockHandler", player, move);
+    // console.log("moveBlockHandler", player, move);
 
-    cats[player].vx = typeof move.x === "number" ? move.x : cats[player].vx;
-    cats[player].vy = typeof move.y === "number" ? move.y : cats[player].vy;
+    if(cats[player]) {
+        cats[player].vx = typeof move.x === "number" ? move.x : cats[player].vx;
+        cats[player].vy = typeof move.y === "number" ? move.y : cats[player].vy;
+    }
+    
 
     // console.log(cats[player].vx, cats[player].vy, +(new Date()))
   }
@@ -136,24 +197,24 @@ function loadProgressHandler(loader, resource) {
     hit = false;
   
     //Find the center points of each sprite
-    r1.centerX = r1.x + r1.width / 2;
-    r1.centerY = r1.y + r1.height / 2;
-    r2.centerX = r2.x + r2.width / 2;
-    r2.centerY = r2.y + r2.height / 2;
+    let r1centerX = r1.x + r1.width / 2;
+    let r1centerY = r1.y + r1.height / 2;
+    let r2centerX = r2.x + r2.width / 2;
+    let r2centerY = r2.y + r2.height / 2;
   
     //Find the half-widths and half-heights of each sprite
-    r1.halfWidth = r1.width / 2;
-    r1.halfHeight = r1.height / 2;
-    r2.halfWidth = r2.width / 2;
-    r2.halfHeight = r2.height / 2;
+    let r1halfWidth = r1.width / 2;
+    let r1halfHeight = r1.height / 2;
+    let r2halfWidth = r2.width / 2;
+    let r2halfHeight = r2.height / 2;
   
     //Calculate the distance vector between the sprites
-    vx = r1.centerX - r2.centerX;
-    vy = r1.centerY - r2.centerY;
+    vx = r1centerX - r2centerX;
+    vy = r1centerY - r2centerY;
   
     //Figure out the combined half-widths and half-heights
-    combinedHalfWidths = r1.halfWidth + r2.halfWidth;
-    combinedHalfHeights = r1.halfHeight + r2.halfHeight;
+    combinedHalfWidths = r1halfWidth + r2halfWidth;
+    combinedHalfHeights = r1halfHeight + r2halfHeight;
   
     //Check for a collision on the x axis
     if (Math.abs(vx) < combinedHalfWidths) {
@@ -469,32 +530,79 @@ function loadProgressHandler(loader, resource) {
     state(delta);
   }
 
-  function labirint() {
-    for (let i = 0; i < 17; i++) {
-        for (let j = 0; j < 17; j++ ) {
-            if (i === 0 || j === 0 || i === 16 || j === 16 || (i % 2 !== 1 && j % 2 !== 1)) {
+  function labirint(width = 17, height = 17, cell = 40) {
+
+    let border = [];
+    for (let i = 0; i < height; i++) {
+        let row = [];
+        for (let j = 0; j < width; j++ ) {
+            if (i === 0 || j === 0 || i === width - 1 || j === height - 1) {
                 let rectangle = new PIXI.Graphics();
                 rectangle.lineStyle(1, 0x18181a, 1);
                 rectangle.beginFill(0xabaaac);
-                rectangle.drawRect(1, 1, 39 , 39);
+                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
                 rectangle.endFill();
-                rectangle.x = i * 40;
-                rectangle.y = j * 40;
-                if ((i % 2 !== 1 && j % 2 !== 1) && !(i === 0 || j === 0 || i === 16 || j === 16)) {
-                    console.log(i,j);
-                    blocks.push(rectangle);
-                }       
-                app.stage.addChild(rectangle);
+                rectangle.x = i * cell;
+                rectangle.y = j * cell;
+                row[j] = rectangle;
             }
         }
+        border.push(row)
     }
+
+    let map = [];
+    for (let i = 1; i < height - 1; i++) {
+        let row = [];
+        for (let j = 1; j < width - 1; j++ ) {
+            if (i % 2 !== 1 && j % 2 !== 1) {
+                let rectangle = new PIXI.Graphics();
+                rectangle.lineStyle(1, 0x18181a, 1);
+                rectangle.beginFill(0xabaaac);
+                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+                rectangle.endFill();
+                rectangle.x = i * cell;
+                rectangle.y = j * cell;
+                row[j] = rectangle;
+            }
+        }
+        map.push(row);
+    }
+
+    let wall = [];
+    for (let i = 1; i < height - 1; i++) {
+        let row = [];
+        for (let j = 1; j < width - 1; j++ ) {
+            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.3) {
+                let rectangle = new PIXI.Graphics();
+                rectangle.lineStyle(1, 0x18181a, 1);
+                rectangle.beginFill(0xb8c1ba);
+                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+                rectangle.endFill();
+                rectangle.x = i * cell;
+                rectangle.y = j * cell;
+                row[j] = rectangle;
+            }
+        }
+        wall.push(row);
+    }
+
+
+    blocks = blocks.concat(
+        map.reduce((acc, val) => acc.concat(val), []), 
+        border.reduce((acc, val) => acc.concat(val), []),
+        wall.reduce((acc, val) => acc.concat(val), []));
+
+    blocks.forEach(bl => {
+        app.stage.addChild(bl);
+    });
   }
 
   function setup() {
 
     socket.on("new player", newPlayerHandler);
     socket.on("move block", moveBlockHandler);
-    socket.on("remove user", removeUserHandler)
+    socket.on("remove user", removeUserHandler);
+    socket.on("bomb", bombHandler);
 
     labirint();
     
@@ -504,15 +612,28 @@ function loadProgressHandler(loader, resource) {
       }
 
     let playerObj = createPlayer(currentUser);
+    // currentUser = {
+    //     name: currentUser,
+    //     player: playerObj
+    // }
     cats[currentUser] = playerObj;
     app.stage.addChild(playerObj);
 
     let left = board("ArrowLeft"),
       up = board("ArrowUp"),
       right = board("ArrowRight"),
-      down = board("ArrowDown");
+      down = board("ArrowDown"),
+      space = board("Space"),
+      enter = board("Enter")
 
       let speed = 5;
+
+      space.press = enter.press = () => {
+          socket.emit('bomb', {
+            x: playerObj.x - playerObj.x % 40,
+            y: playerObj.y - playerObj.y % 40
+          })
+      }
 
       left.press = () => {
         socket.emit('direction', {
