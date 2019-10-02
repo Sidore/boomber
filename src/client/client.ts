@@ -4,7 +4,7 @@ import board from "./keyboard";
 // import cat from "./cat.png"
 
 const root = document.getElementById("app");
-let currentUser, globalPlayers, bombs = {}
+let currentUser, globalPlayers, bombs = {}, mapBlocks
 
   var socket = io("http://localhost:3333");
 
@@ -58,53 +58,76 @@ function playerImage(type?) : PIXI.Sprite[] {
 }
 
 function setBomb({id, x, y}) {
-    let rectangle = new PIXI.Graphics();
+    let rectangle = new PIXI.Graphics() as any;
                 rectangle.lineStyle(1, 0xcccccc, 1);
                 rectangle.beginFill(0x000000);
                 rectangle.drawCircle(20,20,15);
                 rectangle.endFill();
                 rectangle.x = x;
                 rectangle.y = y;
-
+    rectangle.bombId = id;
     bombs[id] = rectangle;
+    // blocks.push(rectangle)
     app.stage.addChild(rectangle);
 
 }
 
-function explodeBomb({id}) {
+function explodeBomb({id, level}) {
     let b = bombs[id] as PIXI.Graphics;
+    let size = Number(level)
     b.lineStyle(1, 0xcccccc, 1);
     b.beginFill(0xff0000);
     b.drawRect(1,1,39,39);
     b.endFill();
-    let cont = new PIXI.Graphics;
-
+    let contX = new PIXI.Graphics;
+    let contY = new PIXI.Graphics;
     for(let p in cats) {
         let player = cats[p];
-        cont.lineStyle(1, 0xcccccc, 1);
-        cont.beginFill(0xff0000);
-        cont.drawRect(1,1,119,119);
-        cont.endFill();
-        
-        cont.width = cont.height = 120;
-        cont.x = b.x - 40;
-        cont.y = b.y - 40;
+        contX.lineStyle(1, 0xcccccc, 1);
+        contX.beginFill(0xff0000);
+        contX.drawRect(1,1,40 * 2 * size + 39 , 40 * 2 * size + 39);
+        contX.endFill();
+        contX.width = 40 * 2 * size + 40;
+        contX.height = 40;
+        contX.x = b.x - 40 * size;
+        contX.y = b.y;
 
-        app.stage.addChild(cont);
+        contY.lineStyle(1, 0xcccccc, 1);
+        contY.beginFill(0xff0000);
+        contY.drawRect(1,1,40 * 2 * size + 39,40 * 2 * size + 39);
+        contY.endFill();
+        contY.width = 40;
+        contY.height = 40 * 2 * size + 40;
+        contY.x = b.x;
+        contY.y = b.y - 40 * size;
 
-        console.log(player, cont)
-        if (hitTestRectangle(player, cont)) {
+        app.stage.addChild(contX);
+        app.stage.addChild(contY);
+
+        // console.log(player, contX, contY)
+        if (hitTestRectangle(player, contX) || hitTestRectangle(player, contY)) {
             console.log("hitBombZone");
             app.stage.removeChild(player);
             
             delete cats[p];
         }
+
+        blocks.forEach((bl, index) => {
+
+            if (bl.type === 1 && (hitTestRectangle(bl, contX) || hitTestRectangle(bl, contY))) {
+                console.log("hitBombZone Block");
+                app.stage.removeChild(bl);
+                blocks.splice(index,1);
+            }
+
+        });
     }
 
     setTimeout(() => {
         app.stage.removeChild(b);
-        app.stage.removeChild(cont);
-
+        app.stage.removeChild(contX);
+        app.stage.removeChild(contY);
+        // blocks.splice(blocks.findIndex(bomb => bomb.bombId == id), 1)
     }, 1000);
 
 }
@@ -530,71 +553,99 @@ function loadProgressHandler(loader, resource) {
     state(delta);
   }
 
-  function labirint(width = 17, height = 17, cell = 40) {
+  function createBlock(type ,i,j,cell, color = 0xabaaac, border = 0x18181a) {
+    let rectangle = new PIXI.Graphics() as any;
+            rectangle.lineStyle(1, border, 1);
+            rectangle.beginFill(color);
+            rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+            rectangle.endFill();
+            rectangle.x = i * cell;
+            rectangle.y = j * cell;
+            rectangle.type = type;
+            blocks.push(rectangle);
+    return rectangle;
+}
 
-    let border = [];
+
+  function labirint(cell = 40) {
+
+    let height = mapBlocks.length;
+    let width = mapBlocks[0].length;
+
     for (let i = 0; i < height; i++) {
-        let row = [];
-        for (let j = 0; j < width; j++ ) {
-            if (i === 0 || j === 0 || i === width - 1 || j === height - 1) {
-                let rectangle = new PIXI.Graphics();
-                rectangle.lineStyle(1, 0x18181a, 1);
-                rectangle.beginFill(0xabaaac);
-                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-                rectangle.endFill();
-                rectangle.x = i * cell;
-                rectangle.y = j * cell;
-                row[j] = rectangle;
+            for (let j = 0; j < width; j++ ) {
+                switch (mapBlocks[i][j]) {
+                    case 1: app.stage.addChild(createBlock(1,i,j,cell, 0xb8c1ba)); break;
+                    case 2: app.stage.addChild(createBlock(2,i,j,cell));break;
+                    case 3: app.stage.addChild(createBlock(3,i,j,cell));break;
+                }
             }
-        }
-        border.push(row)
-    }
-
-    let map = [];
-    for (let i = 1; i < height - 1; i++) {
-        let row = [];
-        for (let j = 1; j < width - 1; j++ ) {
-            if (i % 2 !== 1 && j % 2 !== 1) {
-                let rectangle = new PIXI.Graphics();
-                rectangle.lineStyle(1, 0x18181a, 1);
-                rectangle.beginFill(0xabaaac);
-                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-                rectangle.endFill();
-                rectangle.x = i * cell;
-                rectangle.y = j * cell;
-                row[j] = rectangle;
-            }
-        }
-        map.push(row);
-    }
-
-    let wall = [];
-    for (let i = 1; i < height - 1; i++) {
-        let row = [];
-        for (let j = 1; j < width - 1; j++ ) {
-            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.3) {
-                let rectangle = new PIXI.Graphics();
-                rectangle.lineStyle(1, 0x18181a, 1);
-                rectangle.beginFill(0xb8c1ba);
-                rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-                rectangle.endFill();
-                rectangle.x = i * cell;
-                rectangle.y = j * cell;
-                row[j] = rectangle;
-            }
-        }
-        wall.push(row);
     }
 
 
-    blocks = blocks.concat(
-        map.reduce((acc, val) => acc.concat(val), []), 
-        border.reduce((acc, val) => acc.concat(val), []),
-        wall.reduce((acc, val) => acc.concat(val), []));
+    // let border = [];
+    // for (let i = 0; i < height; i++) {
+    //     let row = [];
+    //     for (let j = 0; j < width; j++ ) {
+    //         if (i === 0 || j === 0 || i === width - 1 || j === height - 1) {
+    //             let rectangle = new PIXI.Graphics();
+    //             rectangle.lineStyle(1, 0x18181a, 1);
+    //             rectangle.beginFill(0xabaaac);
+    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+    //             rectangle.endFill();
+    //             rectangle.x = i * cell;
+    //             rectangle.y = j * cell;
+    //             row[j] = rectangle;
+    //         }
+    //     }
+    //     border.push(row)
+    // }
 
-    blocks.forEach(bl => {
-        app.stage.addChild(bl);
-    });
+    // let map = [];
+    // for (let i = 1; i < height - 1; i++) {
+    //     let row = [];
+    //     for (let j = 1; j < width - 1; j++ ) {
+    //         if (i % 2 !== 1 && j % 2 !== 1) {
+    //             let rectangle = new PIXI.Graphics();
+    //             rectangle.lineStyle(1, 0x18181a, 1);
+    //             rectangle.beginFill(0xabaaac);
+    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+    //             rectangle.endFill();
+    //             rectangle.x = i * cell;
+    //             rectangle.y = j * cell;
+    //             row[j] = rectangle;
+    //         }
+    //     }
+    //     map.push(row);
+    // }
+
+    // let wall = [];
+    // for (let i = 1; i < height - 1; i++) {
+    //     let row = [];
+    //     for (let j = 1; j < width - 1; j++ ) {
+    //         if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.3) {
+    //             let rectangle = new PIXI.Graphics();
+    //             rectangle.lineStyle(1, 0x18181a, 1);
+    //             rectangle.beginFill(0xb8c1ba);
+    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
+    //             rectangle.endFill();
+    //             rectangle.x = i * cell;
+    //             rectangle.y = j * cell;
+    //             row[j] = rectangle;
+    //         }
+    //     }
+    //     wall.push(row);
+    // }
+
+
+    // blocks = blocks.concat(
+    //     map.reduce((acc, val) => acc.concat(val), []), 
+    //     border.reduce((acc, val) => acc.concat(val), []),
+    //     wall.reduce((acc, val) => acc.concat(val), []));
+
+    // blocks.forEach(bl => {
+    //     app.stage.addChild(bl);
+    // });
   }
 
   function setup() {
@@ -623,7 +674,7 @@ function loadProgressHandler(loader, resource) {
       up = board("ArrowUp"),
       right = board("ArrowRight"),
       down = board("ArrowDown"),
-      space = board("Space"),
+      space = board(" "),
       enter = board("Enter")
 
       let speed = 5;
@@ -631,7 +682,8 @@ function loadProgressHandler(loader, resource) {
       space.press = enter.press = () => {
           socket.emit('bomb', {
             x: playerObj.x - playerObj.x % 40,
-            y: playerObj.y - playerObj.y % 40
+            y: playerObj.y - playerObj.y % 40,
+            level: Math.round(Math.random() *3) + 1
           })
       }
 
@@ -709,9 +761,6 @@ function play(delta) {
         cats[p].x += cats[p].vx;
         cats[p].y += cats[p].vy;
 
-        
-
-
         if(cats[p].vx > 0) {
             let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 4 * 24, 24, 24);
             cats[p].children[0].texture.frame = rectangle;
@@ -775,9 +824,10 @@ function play(delta) {
 
   }
 
-  socket.on("welcome", (players) => {
-      console.log("welcome to ws", players)
+  socket.on("welcome", ({players, map}) => {
+      console.log("welcome to ws", players, map)
       globalPlayers = players;
+      mapBlocks = map;
 
       socket.emit('set data', {
         name : currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
