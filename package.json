@@ -4,7 +4,7 @@
   "description": "airconcole реализация для игри бомбер, с екраном и телефонами как джосйтиками",
   "main": "index.js",
   "scripts": {
-    "server": "ts-node ./src/server/index.ts -watch",
+    "server": "ts-node ./src/server/index.ts",
     "dev": "nodemon --watch",
     "client": "parcel src/client/index.html",
     "build": "parcel build src/client/index.html --public-url /dist/ && tsc -p ."

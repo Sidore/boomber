@@ -1,0 +1,24 @@
+sudo: false
+
+language: node_js
+node_js:
+  - 9
+
+branches:
+  only:
+    - master
+
+install:
+  - npm install
+
+cache:
+  directories:
+    - node_modules
+
+dist: trusty
+
+deploy:
+  provider: heroku
+  app: "boomber"
+  api_key:
+    secure: "a6691e4d-8526-4211-bee0-04beffcdc2ed"
