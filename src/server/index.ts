@@ -36,7 +36,9 @@ server.get("/", (req : express.Request, res : express.Response) => {
 })
 
 const httpServer = server.listen(process.env.PORT, () => {
+    const fs = require('fs');
     console.log("run on port " + process.env.PORT)
+    console.log(fs.readdirSync(path.join(__dirname, `../../dist`)))
 })
 
 interface IUserCollection {
