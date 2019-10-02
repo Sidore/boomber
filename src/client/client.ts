@@ -37,26 +37,18 @@ function getRandomColor() {
   }
 
 
-function playerImage(type?) : PIXI.Sprite[] {
+function playerImage(type?) : PIXI.Sprite {
     if (type === undefined) {
         type = Math.round(Math.random() * 7);
     }
 
-    
-    let array = [];
-    
-
-    for (let i = 0; i < 1; i++) {
-        let T = resources["tileset"].texture;
-        let rectangle = new PIXI.Rectangle(type * 24, i* 24, 24, 24);
-        T.frame = rectangle;
+        let T = resources["tileset"].texture.baseTexture;
+        let rectangle = new PIXI.Rectangle(type * 24, 0 * 24, 24, 24);
+        // T.frame = rectangle;
         
-        let sprite = new Sprite(T);
+        let sprite = new Sprite(new PIXI.Texture(T, rectangle));
         sprite.height = sprite.width = 40;
-        array.push(sprite);
-    }
-
-    return array;
+    return sprite;
 
 }
 
@@ -121,6 +113,7 @@ function explodeBomb({id, level}) {
                 console.log("hitBombZone Block");
                 app.stage.removeChild(bl);
                 blocks.splice(index,1);
+                socket.emit("block explode", { x : bl.x, y : bl.y});
             }
 
         });
@@ -146,6 +139,7 @@ function createPlayer(title: string) {
     let animals = new PIXI.Container() as any;
     // let catT = resources["tileset"].texture;
     let typePlayer = Math.round(Math.random() * 7);
+    console.log("typePlayer",typePlayer)
     let cat = playerImage(typePlayer);
 
     // let rectangle = new PIXI.Rectangle(x * 24, y* 24, 24, 24);
@@ -165,11 +159,10 @@ function createPlayer(title: string) {
 
     animals.vx = 0;
     animals.vy = 0;
-    animals.addChild(cat[0]);
+    animals.addChild(cat);
     animals.addChild(mask);
 
     animals.addChild(text);
-    animals.playerTypes = cat;
     animals.typePlayer = typePlayer
     console.log(animals.typePlayer)
     return animals;
@@ -193,6 +186,14 @@ function createPlayer(title: string) {
     
 
     // console.log(cats[player].vx, cats[player].vy, +(new Date()))
+  }
+
+  function syncPositionHandler({player, x, y}) {
+    console.log("sync positon for",player)
+    if(cats[player]) {
+        cats[player].x = typeof x === "number" ? x : cats[player].x;
+        cats[player].y = typeof y === "number" ? y : cats[player].y;
+    }
   }
 
   function removeUserHandler(player) {
@@ -584,94 +585,34 @@ function loadProgressHandler(loader, resource) {
                 }
             }
     }
-
-
-    // let border = [];
-    // for (let i = 0; i < height; i++) {
-    //     let row = [];
-    //     for (let j = 0; j < width; j++ ) {
-    //         if (i === 0 || j === 0 || i === width - 1 || j === height - 1) {
-    //             let rectangle = new PIXI.Graphics();
-    //             rectangle.lineStyle(1, 0x18181a, 1);
-    //             rectangle.beginFill(0xabaaac);
-    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-    //             rectangle.endFill();
-    //             rectangle.x = i * cell;
-    //             rectangle.y = j * cell;
-    //             row[j] = rectangle;
-    //         }
-    //     }
-    //     border.push(row)
-    // }
-
-    // let map = [];
-    // for (let i = 1; i < height - 1; i++) {
-    //     let row = [];
-    //     for (let j = 1; j < width - 1; j++ ) {
-    //         if (i % 2 !== 1 && j % 2 !== 1) {
-    //             let rectangle = new PIXI.Graphics();
-    //             rectangle.lineStyle(1, 0x18181a, 1);
-    //             rectangle.beginFill(0xabaaac);
-    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-    //             rectangle.endFill();
-    //             rectangle.x = i * cell;
-    //             rectangle.y = j * cell;
-    //             row[j] = rectangle;
-    //         }
-    //     }
-    //     map.push(row);
-    // }
-
-    // let wall = [];
-    // for (let i = 1; i < height - 1; i++) {
-    //     let row = [];
-    //     for (let j = 1; j < width - 1; j++ ) {
-    //         if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.3) {
-    //             let rectangle = new PIXI.Graphics();
-    //             rectangle.lineStyle(1, 0x18181a, 1);
-    //             rectangle.beginFill(0xb8c1ba);
-    //             rectangle.drawRect(1, 1, cell - 1 , cell - 1);
-    //             rectangle.endFill();
-    //             rectangle.x = i * cell;
-    //             rectangle.y = j * cell;
-    //             row[j] = rectangle;
-    //         }
-    //     }
-    //     wall.push(row);
-    // }
-
-
-    // blocks = blocks.concat(
-    //     map.reduce((acc, val) => acc.concat(val), []), 
-    //     border.reduce((acc, val) => acc.concat(val), []),
-    //     wall.reduce((acc, val) => acc.concat(val), []));
-
-    // blocks.forEach(bl => {
-    //     app.stage.addChild(bl);
-    // });
   }
 
   function setup() {
 
-    socket.on("new player", newPlayerHandler);
-    socket.on("move block", moveBlockHandler);
-    socket.on("remove user", removeUserHandler);
-    socket.on("bomb", bombHandler);
-
     labirint();
-    
 
     for (let a in globalPlayers) {
         newPlayerHandler(globalPlayers[a].name);
       }
 
     let playerObj = createPlayer(currentUser);
-    // currentUser = {
-    //     name: currentUser,
-    //     player: playerObj
-    // }
+
     cats[currentUser] = playerObj;
     app.stage.addChild(playerObj);
+
+    socket.on("new player", (data) => {
+      socket.emit('sync positon', {x : playerObj.x, y: playerObj.y})
+      newPlayerHandler(data);
+    });
+
+    setInterval(()=> {
+      socket.emit('sync positon', {x : playerObj.x, y: playerObj.y})
+    }, 1000)
+
+    socket.on("move block", moveBlockHandler);
+    socket.on("remove user", removeUserHandler);
+    socket.on("sync positon", syncPositionHandler);
+    socket.on("bomb", bombHandler);
 
     let left = board("ArrowLeft"),
       up = board("ArrowUp"),

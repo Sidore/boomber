@@ -22,7 +22,7 @@ server.get("/", (req : express.Request, res : express.Response) => {
     return res.sendFile(path.join(__dirname, `${extraPass}../dist`, 'index.html'));
 })
 
-const httpServer = server.listen(process.env.PORT, () => {
+const httpServer = server.listen(process.env.PORT || 3333, () => {
     console.log("run on port " + process.env.PORT)
 })
 
@@ -67,6 +67,7 @@ function labirint(width = 17, height = 17, cell = 40) {
         }
         wall.push(row);
     }
+    wall[1][1] = wall[1][2] = wall[2][1] = 0;
     wall.push([])
 
     for(let i = 0; i < height; i++) {
@@ -76,14 +77,6 @@ function labirint(width = 17, height = 17, cell = 40) {
         }
     }
 
-    // let blocks = [].concat(
-    //     map.reduce((acc, val) => acc.concat(val), []), 
-    //     border.reduce((acc, val) => acc.concat(val), []),
-    //     wall.reduce((acc, val) => acc.concat(val), []));
-
-    // blocks.forEach(bl => {
-    //     app.stage.addChild(bl);
-    // });
   }
 
   labirint();
@@ -94,7 +87,7 @@ io.on("connection", (socket) => {
     for (let a in userCollection) {
         // console.log(a, userCollection[a])
         if (userCollection[a].name) {
-            console.log(userCollection[a].name, "should be displayed")
+            console.log(userCollection[a].name, "should be displayed to", socket.id)
             // socket.emit("new player", userCollection[a].name);
         }
     }
@@ -105,7 +98,7 @@ io.on("connection", (socket) => {
         skills: [],
         exp: 0
     }
-    console.log('a new user connected');
+    console.log('a new user connected', socket.id);
 
     socket.on("set data", (data) => {
         if (data && data.name) {
@@ -119,11 +112,27 @@ io.on("connection", (socket) => {
     })
 
     socket.on("direction", (data) => {
-        // console.log(55,socket.id,userCollection,   userCollection[socket.id].name, data);
         io.emit("move block", {
             player : userCollection[socket.id].name,
             move : data
         })
+    })
+
+    socket.on("sync positon", ({x, y}) => {
+        io.emit("sync positon", {
+            player : userCollection[socket.id].name,
+            x, y
+        })
+    })
+
+    socket.on('block explode', ({x,y}) => {
+        let xBlock = (x - x % 40) / 40
+        let yBlock = (y - y % 40) / 40
+
+        console.log(x,y, xBlock, yBlock);
+        
+
+        lab[xBlock][yBlock] = 0;
     })
 
     socket.on("bomb", (data) => {
