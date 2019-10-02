@@ -14,15 +14,12 @@ server.use(express.json());
             res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept, Authorization");
             next();
         });
-server.use("/dist", express.static(path.join(__dirname, `${extraPass}../../dist`)));
-server.use("/public", express.static(path.join(__dirname, `${extraPass}../../public`)));
+server.use("/dist", express.static(path.join(__dirname, `${extraPass}../dist`)));
+server.use("/public", express.static(path.join(__dirname, `${extraPass}../public`)));
 
 
 server.get("/", (req : express.Request, res : express.Response) => {
-
     return res.sendFile(path.join(__dirname, `${extraPass}../dist`, 'index.html'));
-
-    
 })
 
 const httpServer = server.listen(process.env.PORT, () => {
