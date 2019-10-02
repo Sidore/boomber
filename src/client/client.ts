@@ -838,7 +838,7 @@ function play(delta) {
 
      
     loader
-    .add("tileset","http://localhost:3333/public/bomberman.png")
+    .add("tileset",`${serverUrl}/public/bomberman.png`)
     .on("progress", loadProgressHandler)
     .load(setup);
   })
