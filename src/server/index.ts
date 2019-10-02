@@ -23,8 +23,8 @@ server.get("/", (req : express.Request, res : express.Response) => {
     
 })
 
-const httpServer = server.listen(3333, () => {
-    console.log("run on port 3333")
+const httpServer = server.listen(process.env.PORT, () => {
+    console.log("run on port " + process.env.PORT)
 })
 
 interface IUserCollection {

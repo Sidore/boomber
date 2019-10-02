@@ -6,7 +6,10 @@ import board from "./keyboard";
 const root = document.getElementById("app");
 let currentUser, globalPlayers, bombs = {}, mapBlocks
 
-  var socket = io("http://localhost:3333");
+const dev = location && location.hostname == "localhost" || false;
+const serverUrl = dev ? "http://localhost:3333" : "";
+
+  var socket = io(serverUrl);
 
   socket.on('movement', function(msg){
      console.log(msg)
