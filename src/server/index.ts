@@ -20,9 +20,11 @@ server.use("/public", express.static(path.join(__dirname, `${extraPass}../../pub
 
 server.get("/", (req : express.Request, res : express.Response) => {
     // return res.sendFile(path.join(__dirname, `${extraPass}../../dist`, 'index.html'));
-    return res.json({
-        pass : path.join(__dirname, `${extraPass}../../dist`, 'index.html')
-    })
+    // return res.json({
+    //     pass : path.join(__dirname, `${extraPass}../../dist`, 'index.html')
+    // })
+
+    res.sendFile(path.join(__dirname, `${extraPass}../../dist`, 'index.html'));
     
 })
 
