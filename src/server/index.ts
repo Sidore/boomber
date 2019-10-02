@@ -24,7 +24,7 @@ server.get("/", (req : express.Request, res : express.Response) => {
     //     pass : path.join(__dirname, `${extraPass}../../dist`, 'index.html')
     // })
 
-    res.sendFile(path.join(__dirname, `../../dist`, 'index.html'));
+    // res.sendFile(path.join(__dirname, `../../dist`, 'index.html'));
 
     const fs = require('fs');
 
