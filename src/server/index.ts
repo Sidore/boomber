@@ -3,7 +3,7 @@ import * as path from "path";
 import * as socketServer from "socket.io";
 import IUser from "./IUser";
 
-const extraPass = ""
+const extraPass = __dirname.indexOf("distServer") === -1 ? "../" : "";
 
 const server = express();
 server.use(express.json());
@@ -19,26 +19,14 @@ server.use("/public", express.static(path.join(__dirname, `${extraPass}../../pub
 
 
 server.get("/", (req : express.Request, res : express.Response) => {
-    // return res.sendFile(path.join(__dirname, `${extraPass}../../dist`, 'index.html'));
-    // return res.json({
-    //     pass : path.join(__dirname, `${extraPass}../../dist`, 'index.html')
-    // })
 
-    // res.sendFile(path.join(__dirname, `../../dist`, 'index.html'));
+    return res.sendFile(path.join(__dirname, `${extraPass}../dist`, 'index.html'));
 
-    const fs = require('fs');
-
-    res.json({
-        filesDist: fs.readdirSync(path.join(__dirname, `../../dist`)),
-        dirname: fs.readdirSync(path.join(__dirname))
-    }) 
     
 })
 
 const httpServer = server.listen(process.env.PORT, () => {
-    const fs = require('fs');
     console.log("run on port " + process.env.PORT)
-    console.log(fs.readdirSync(path.join(__dirname, `../../dist`)))
 })
 
 interface IUserCollection {
