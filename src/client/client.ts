@@ -608,9 +608,13 @@ function setup() {
     newPlayerHandler(data);
   });
 
-  setInterval(() => {
+  socket.on("required sync", (data) => {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-  }, 1000)
+  });
+
+  // setInterval(() => {
+  //   socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
+  // }, 1000)
 
   socket.on("move block", moveBlockHandler);
   socket.on("remove user", removeUserHandler);
@@ -780,6 +784,7 @@ socket.on("welcome", ({ players, map }) => {
     name: currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
   });
 
+  socket.emit("required sync");
 
   loader
     .add("tileset", `${serverUrl}/public/bomberman.png`)

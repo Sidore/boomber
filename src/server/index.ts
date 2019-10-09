@@ -131,6 +131,11 @@ io.on("connection", (socket) => {
         })
     })
 
+    socket.on("required sync", () => {
+        console.log( userCollection[socket.id].name, "required positon sync")
+        io.emit("required sync")
+    })
+
     socket.on('block explode', ({ x, y }) => {
         let xBlock = (x - x % 40) / 40
         let yBlock = (y - y % 40) / 40
