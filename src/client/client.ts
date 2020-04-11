@@ -1,131 +1,191 @@
 import * as PIXI from 'pixi.js';
 import io from 'socket.io-client';
 import board from "./keyboard";
-// import cat from "./cat.png"
 
-const root = document.getElementById("app");
-let currentUser, globalPlayers, bombs = {}, mapBlocks
+const root = document.getElementById("application");
+let currentUser, 
+    globalPlayers, 
+    bombs = {},
+    explosions = [], 
+    mapBlocks;
+let players: any = {},
+    state = null, 
+    blocks = [];
 
+let debugCollision: any = {};
 const dev = location && location.hostname == "localhost" || false;
 const serverUrl = dev ? "http://localhost:3333" : "";
-
-var socket = io(serverUrl);
-
-socket.on('movement', function (msg) {
-  console.log(msg)
-});
-
-let cats: any = {}, state, blocks = []
-
-let app = new PIXI.Application({
+const socket = io(serverUrl);
+const application = new PIXI.Application({
   width: 681,
   height: 681,
   antialias: true,
   transparent: false,
   resolution: 1,
   backgroundColor: 0x008b00
-}
-);
+});
+const { loader, stage } = application;
+const { resources } = loader;
+const { Sprite } = PIXI;
+const backLayot = new PIXI.Container();
+const bombsLayot = new PIXI.Container();
+const mapLayout = new PIXI.Container();
+const playersLayout = new PIXI.Container();
+
+stage.addChild(backLayot);
+stage.addChild(mapLayout);
+stage.addChild(bombsLayot);
+stage.addChild(playersLayout);
+
+socket.on('movement', function (msg) {
+  console.log(msg)
+});
 
 function getRandomColor() {
-  var letters = '0123456789ABCDEF';
-  var color = '';
-  for (var i = 0; i < 6; i++) {
+  let letters = '0123456789ABCDEF';
+  let color = '';
+  for (let i = 0; i < 6; i++) {
     color += letters[Math.floor(Math.random() * 16)];
   }
   return color;
 }
 
-
 function playerImage(type?): PIXI.Sprite {
   if (type === undefined) {
     type = Math.round(Math.random() * 7);
   }
-
   let T = resources["tileset"].texture.baseTexture;
   let rectangle = new PIXI.Rectangle(type * 24, 0 * 24, 24, 24);
-  // T.frame = rectangle;
-
   let sprite = new Sprite(new PIXI.Texture(T, rectangle));
   sprite.height = sprite.width = 40;
   return sprite;
-
 }
 
 function setBomb({ id, x, y }) {
-  let rectangle = new PIXI.Graphics() as any;
-  rectangle.lineStyle(1, 0xcccccc, 1);
-  rectangle.beginFill(0x000000);
-  rectangle.drawCircle(20, 20, 15);
-  rectangle.endFill();
-  rectangle.x = x;
-  rectangle.y = y;
-  rectangle.bombId = id;
-  bombs[id] = rectangle;
-  // blocks.push(rectangle)
-  app.stage.addChild(rectangle);
-
+  let bomb = new PIXI.Graphics() as any;
+  bomb.lineStyle(1, 0xcccccc, 1);
+  bomb.beginFill(0x000000);
+  bomb.drawCircle(20, 20, 15);
+  bomb.endFill();
+  bomb.x = x;
+  bomb.y = y;
+  bomb.bombId = id;
+  bombs[id] = bomb;
+  bombsLayot.addChild(bomb);
 }
 
 function explodeBomb({ id, level }) {
-  let b = bombs[id] as PIXI.Graphics;
-  let size = Number(level)
-  b.lineStyle(1, 0xcccccc, 1);
-  b.beginFill(0xff0000);
-  b.drawRect(1, 1, 39, 39);
-  b.endFill();
-  let contX = new PIXI.Graphics;
-  let contY = new PIXI.Graphics;
-  for (let p in cats) {
-    let player = cats[p];
-    contX.lineStyle(1, 0xcccccc, 1);
-    contX.beginFill(0xff0000);
-    contX.drawRect(1, 1, 40 * 2 * size + 39, 40 * 2 * size + 39);
-    contX.endFill();
-    contX.width = 40 * 2 * size + 40;
-    contX.height = 40;
-    contX.x = b.x - 40 * size;
-    contX.y = b.y;
+  const bomb = bombs[id] as PIXI.Graphics;
+  const size = Number(level)
+  bomb.lineStyle(1, 0xcccccc, 1);
+  bomb.beginFill(0xff0000);
+  bomb.drawRect(1, 1, 39, 39);
+  bomb.endFill();
+  const explodeHorizontal: any = new PIXI.Graphics;
+  const explodeVertical: any = new PIXI.Graphics;
+  // for (const id in players) {
+  //   const player = players[id];
+    explodeHorizontal.lineStyle(1, 0xcccccc, 1);
+    explodeHorizontal.beginFill(0xff0000);
+    explodeHorizontal.drawRect(1, 1, 40 * 2 * size + 39, 40 * 2 * size + 39);
+    explodeHorizontal.endFill();
+    explodeHorizontal.width = 40 * 2 * size + 40;
+    explodeHorizontal.height = 40;
+    explodeHorizontal.x = bomb.x - 40 * size;
+    explodeHorizontal.y = bomb.y;
+    explodeVertical.lineStyle(1, 0xcccccc, 1);
+    explodeVertical.beginFill(0xff0000);
+    explodeVertical.drawRect(1, 1, 40 * 2 * size + 39, 40 * 2 * size + 39);
+    explodeVertical.endFill();
+    explodeVertical.width = 40;
+    explodeVertical.height = 40 * 2 * size + 40;
+    explodeVertical.x = bomb.x;
+    explodeVertical.y = bomb.y - 40 * size;
+    bombsLayot.addChild(explodeHorizontal);
+    bombsLayot.addChild(explodeVertical);
+    explosions.push(explodeVertical,explodeHorizontal);
+    explodeLimit(explodeHorizontal, explodeVertical, size);
 
-    contY.lineStyle(1, 0xcccccc, 1);
-    contY.beginFill(0xff0000);
-    contY.drawRect(1, 1, 40 * 2 * size + 39, 40 * 2 * size + 39);
-    contY.endFill();
-    contY.width = 40;
-    contY.height = 40 * 2 * size + 40;
-    contY.x = b.x;
-    contY.y = b.y - 40 * size;
+    // if (hitTestRectangle(player, explodeHorizontal) || hitTestRectangle(player, explodeVertical)) {
+    //   console.log(player, explodeHorizontal,hitTestRectangle(player, explodeHorizontal), explodeVertical, hitTestRectangle(player, explodeVertical))
+    //   playersLayout.removeChild(player);
+    //   delete players[id];
+    // }
 
-    app.stage.addChild(contX);
-    app.stage.addChild(contY);
-
-    // console.log(player, contX, contY)
-    if (hitTestRectangle(player, contX) || hitTestRectangle(player, contY)) {
-      console.log("hitBombZone");
-      app.stage.removeChild(player);
-
-      delete cats[p];
-    }
-
-    blocks.forEach((bl, index) => {
-
-      if (bl.type === 1 && (hitTestRectangle(bl, contX) || hitTestRectangle(bl, contY))) {
-        console.log("hitBombZone Block");
-        app.stage.removeChild(bl);
+    blocks
+      .filter(b => b.type === 1)
+      .forEach((bl) => {
+      const index = blocks.findIndex(b => b === bl)
+      if ((hitTestRectangle(bl, explodeHorizontal) || hitTestRectangle(bl, explodeVertical))) {
+        // console.log("hitBombZone Block");
+        mapLayout.removeChild(bl);
         blocks.splice(index, 1);
+        // console.log("block explode", { x: bl.x, y: bl.y })
         socket.emit("block explode", { x: bl.x, y: bl.y });
       }
 
     });
-  }
+  // }
 
   setTimeout(() => {
-    app.stage.removeChild(b);
-    app.stage.removeChild(contX);
-    app.stage.removeChild(contY);
-    // blocks.splice(blocks.findIndex(bomb => bomb.bombId == id), 1)
+    explosions = explosions.filter(item => item !== explodeHorizontal && item !== explodeVertical)
+    bombsLayot.removeChild(bomb);
+    bombsLayot.removeChild(explodeHorizontal);
+    bombsLayot.removeChild(explodeVertical);
   }, 1000);
 
+}
+
+function explodeLimit(horizontal, vertical, size) {
+  const centerX = horizontal.x + size * 40;
+  const centerY = vertical.y + size * 40;
+  let directionUp = false,
+        directionDown = false,
+        directionLeft = false,
+        directionRight = false
+
+  blocks.forEach((block) => { // баг когда взрываешь справа второй блок от борта
+    
+    if (hitTestRectangle(block, horizontal)) {
+      if (block.type === 1) {
+        if (block.x < centerX) {
+          let differenceX = block.x - horizontal.x;
+          horizontal.x = block.x;
+          horizontal.width = horizontal.width - differenceX;
+        } else if(block.x >  centerX) {
+          horizontal.width = horizontal.width + block.width - (horizontal.x + horizontal.width - block.x);
+        }
+      } else {
+        if (block.x < centerX) {
+          let differenceX = block.x - horizontal.x;
+          horizontal.x = block.x + block.width;
+          horizontal.width = horizontal.width - differenceX - block.width;
+        } else if(block.x >  centerX) {
+          horizontal.width = horizontal.width - (horizontal.x + horizontal.width - block.x) - block.width;
+        }
+      }
+    }
+
+    if (hitTestRectangle(block, vertical)) {
+      if (block.type === 1) {
+        if (block.y < centerY) {
+          let differenceY = block.y - vertical.y;
+          vertical.y = block.y;
+          vertical.height = vertical.height - differenceY;
+        } else if(block.y >  centerY) {
+          vertical.height = vertical.height + block.height - (vertical.y + vertical.height - block.y);
+        }
+      } else {
+        if (block.y < centerY) {
+          let differenceY = block.y - vertical.y;
+          vertical.y = block.y + block.height;
+          vertical.height = vertical.height - differenceY - block.height;
+        } else if(block.y >  centerY) {
+          vertical.height = vertical.height - (vertical.y + vertical.height - block.y) - block.height;
+        }
+      }
+    }
+  })
 }
 
 function bombHandler(bomb) {
@@ -136,11 +196,11 @@ function bombHandler(bomb) {
 }
 
 function createPlayer(title: string) {
-  let animals = new PIXI.Container() as any;
+  let player = new PIXI.Container() as any;
   // let catT = resources["tileset"].texture;
   let typePlayer = Math.round(Math.random() * 7);
   console.log("typePlayer", typePlayer)
-  let cat = playerImage(typePlayer);
+  let image = playerImage(typePlayer);
 
   // let rectangle = new PIXI.Rectangle(x * 24, y* 24, 24, 24);
   let text = new PIXI.Text(title, new PIXI.TextStyle({
@@ -150,67 +210,62 @@ function createPlayer(title: string) {
   }));
   text.position.x = 5;
   text.position.y = 28;
-  animals.height = 40;
-  animals.width = 40;
-
-
+  player.height = 40;
+  player.width = 40;
   var mask = new PIXI.Graphics().beginFill(+("0x" + getRandomColor())).drawRect(0, 30, 40, 10).endFill();
-
-  animals.x = 40;
-  animals.y = 40;
-
-  animals.vx = 0;
-  animals.vy = 0;
-  animals.addChild(cat);
-  animals.addChild(mask);
-
-  animals.addChild(text);
-  animals.typePlayer = typePlayer
-  console.log(animals.typePlayer)
-  return animals;
+  player.x = 40;
+  player.y = 40;
+  player.vx = 0;
+  player.vy = 0;
+  player.addChild(image);
+  player.addChild(mask);
+  player.addChild(text);
+  player.typePlayer = typePlayer;
+  player.bombLevel = 2;
+  player.bombCount = 1;
+  player.name = title;
+  console.log(player.typePlayer)
+  return player;
 }
 
 function newPlayerHandler(player) {
   console.log("new player added", player);
-  let playerObj = createPlayer(player);
-  cats[player] = playerObj;
-  console.log(cats)
-  app.stage.addChild(playerObj);
+  const playerObj = createPlayer(player);
+  players[player] = playerObj;
+  console.log(players)
+  playersLayout.addChild(playerObj);
 }
 
 function moveBlockHandler({ player, move }) {
   // console.log("moveBlockHandler", player, move);
 
-  if (cats[player]) {
-    cats[player].vx = typeof move.x === "number" ? move.x : cats[player].vx;
-    cats[player].vy = typeof move.y === "number" ? move.y : cats[player].vy;
+  if (players[player]) {
+    players[player].vx = typeof move.x === "number" ? move.x : players[player].vx;
+    players[player].vy = typeof move.y === "number" ? move.y : players[player].vy;
   }
 
 
-  // console.log(cats[player].vx, cats[player].vy, +(new Date()))
+  // console.log(players[player].vx, players[player].vy, +(new Date()))
 }
 
 function syncPositionHandler({ player, x, y }) {
   console.log("sync positon for", player)
-  if (cats[player]) {
-    cats[player].x = typeof x === "number" ? x : cats[player].x;
-    cats[player].y = typeof y === "number" ? y : cats[player].y;
+  if (players[player]) {
+    players[player].x = typeof x === "number" ? x : players[player].x;
+    players[player].y = typeof y === "number" ? y : players[player].y;
   }
 }
 
 function removeUserHandler(player) {
   console.log(`${player} has been removed`)
-  app.stage.removeChild(cats[player])
-  delete cats[player];
+  stage.removeChild(players[player])
+  delete players[player];
 }
 // let base = new PIXI.BaseTexture(anyImageObject),
 //     texture = new PIXI.Texture(base),
 //     sprite = new PIXI.Sprite(texture);
-const { loader } = app;
-const { resources } = loader;
-const { Sprite } = PIXI;
 
-document.body.appendChild(app.view);
+document.body.appendChild(application.view);
 
 function loadProgressHandler(loader, resource) {
   console.log("loading: " + resource.url);
@@ -220,6 +275,9 @@ function loadProgressHandler(loader, resource) {
 
 function hitTestRectangle(r1, r2) {
 
+  if (debugCollision.type === 1 && (r1 === debugCollision || r2 === debugCollision)) {
+    debugger;
+  }
   //Define the variables we'll need to calculate
   let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
 
@@ -561,18 +619,42 @@ function gameLoop(delta) {
 }
 
 function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
-  let rectangle = new PIXI.Graphics() as any;
-  rectangle.lineStyle(1, border, 1);
-  rectangle.beginFill(color);
-  rectangle.drawRect(1, 1, cell - 1, cell - 1);
-  rectangle.endFill();
-  rectangle.x = i * cell;
-  rectangle.y = j * cell;
+  let rectangle = new PIXI.Container() as any;
+  // rectangle.lineStyle(1, border, 1);
+  // rectangle.beginFill(color);
+  // rectangle.drawRect(1, 1, cell - 1, cell - 1);
+  // rectangle.endFill();
+
+  let tileTitle = "";
+
+  if (type === 1 || type === 2) {
+    tileTitle = `block${type}`
+  } else if (i === 0 && j === 0) {
+    tileTitle = "topleft"
+  } else if (i === 0 && j === 16) {
+    tileTitle = "topright"
+  } else if (i === 0) {
+    tileTitle = "block3"
+  } else if (i === 16) {
+    tileTitle = "down";
+  } else if (j === 16 ) {
+    tileTitle = "right"
+  } else if (j === 0 ) {
+    tileTitle = "left";
+  }  
+
+  let T = resources[tileTitle].texture.baseTexture;
+  T.width = 40;
+  T.height = 40;
+  let sprite = new Sprite(new PIXI.Texture(T));
+
+  rectangle.addChild(sprite)
+  rectangle.x = j * cell;
+  rectangle.y = i * cell;
   rectangle.type = type;
   blocks.push(rectangle);
   return rectangle;
 }
-
 
 function labirint(cell = 40) {
 
@@ -581,16 +663,37 @@ function labirint(cell = 40) {
 
   for (let i = 0; i < height; i++) {
     for (let j = 0; j < width; j++) {
-      switch (mapBlocks[i][j]) {
-        case 1: app.stage.addChild(createBlock(1, i, j, cell, 0xb8c1ba)); break;
-        case 2: app.stage.addChild(createBlock(2, i, j, cell)); break;
-        case 3: app.stage.addChild(createBlock(3, i, j, cell)); break;
+      switch (mapBlocks[i][j]) { // TODO remove switch
+        case 1: {
+          let container = createBlock(1, i, j, cell, 0xb8c1ba);
+          
+          container.interactive = true;
+          container.buttonMode = true;
+          container.hitArea = new PIXI.Rectangle(0, 0, 39, 39);
+          // stage.addChild(sprite);
+          container.click = function (e) {
+            debugCollision = container;
+            console.log({
+              x: this.x,
+              y: this.y
+            });
+        }
+          mapLayout.addChild(container); 
+          break;}
+        case 2: mapLayout.addChild(createBlock(2, i, j, cell)); break;
+        case 3: mapLayout.addChild(createBlock(3, i, j, cell)); break;
       }
     }
   }
 }
 
 function setup() {
+
+  const grass = resources["grass"].texture.baseTexture;
+  grass.width = 40;
+  grass.height = 40;
+  let sprite = new (PIXI as any).TilingSprite(new PIXI.Texture(grass),681,681);
+  backLayot.addChild(sprite);
 
   labirint();
 
@@ -600,8 +703,8 @@ function setup() {
 
   let playerObj = createPlayer(currentUser);
 
-  cats[currentUser] = playerObj;
-  app.stage.addChild(playerObj);
+  players[currentUser] = playerObj;
+  playersLayout.addChild(playerObj);
 
   socket.on("new player", (data) => {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
@@ -612,9 +715,10 @@ function setup() {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
   });
 
+  //
   // setInterval(() => {
   //   socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-  // }, 1000)
+  // }, 500)
 
   socket.on("move block", moveBlockHandler);
   socket.on("remove user", removeUserHandler);
@@ -631,10 +735,12 @@ function setup() {
   let speed = 5;
 
   space.press = enter.press = () => {
+    const shiftX = playerObj.x % 40;
+    const shiftY = playerObj.y % 40;
     socket.emit('bomb', {
-      x: playerObj.x - playerObj.x % 40,
-      y: playerObj.y - playerObj.y % 40,
-      level: Math.round(Math.random() * 3) + 1
+      x: playerObj.x - (shiftX > 20 ? -(40 - shiftX) : shiftX),
+      y: playerObj.y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
+      level: playerObj.bombLevel
     })
   }
 
@@ -702,77 +808,92 @@ function setup() {
 
   state = play;
 
-  app.ticker.add(delta => gameLoop(delta));
+  application.ticker.add(delta => gameLoop(delta));
 }
 
 function play(delta) {
   //Use the cat's velocity to make it move
-  for (let p in cats) {
+  for (let p in players) {
     // console.log(p)rs
-    cats[p].x += cats[p].vx;
-    cats[p].y += cats[p].vy;
+    players[p].x += players[p].vx;
+    players[p].y += players[p].vy;
 
-    if (cats[p].vx > 0) {
-      let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 4 * 24, 24, 24);
-      cats[p].children[0].texture.frame = rectangle;
-    } else if (cats[p].vx < 0) {
-      let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 8 * 24, 24, 24);
-      cats[p].children[0].texture.frame = rectangle;
-    } else if (cats[p].vy > 0) {
-      let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 1 * 24, 24, 24);
-      cats[p].children[0].texture.frame = rectangle;
-    } else if (cats[p].vy < 0) {
-      let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 10 * 24, 24, 24);
-      cats[p].children[0].texture.frame = rectangle;
-    } else if (cats[p].vy === 0 || cats[p].vx === 0) {
-      let rectangle = new PIXI.Rectangle(cats[p].typePlayer * 24, 0 * 24, 24, 24);
-      cats[p].children[0].texture.frame = rectangle;
-    }
+    animatePlayer(players[p],p);
 
-
-
-
-
-    if (cats[p].vx || cats[p].vy || p == "1") {
-      // console.log(p,cats[p].vx,cats[p].vy, cats[p].x, cats[p].y )
-    }
-    let hitBorders = contain(cats[p], {
+    let hitBorders = contain(players[p], {
       x: 40, y: 40, width: 640, height: 640
     })
 
     if (hitBorders === "top" || hitBorders === "bottom") {
-      cats[p].vy = 0;
+      players[p].vy = 0;
     }
 
     if (hitBorders === "left" || hitBorders === "right") {
-      cats[p].vx = 0;
+      players[p].vx = 0;
     }
 
-    // if (cats[p].vy || cats[p].vx)
+    // if (players[p].vy || players[p].vx)
     blocks.forEach(block => {
-      // if (hitTestRectangle(cats[p], block)) {
-      //     if (cats[p].vx) {
-      //         cats[p].x -= cats[p].vx;
-      //     }
-      //     if (cats[p].vy) {
-      //         cats[p].y -= cats[p].vy;
-      //     }
-      // }
-      let hit = rectangleCollision(cats[p], block)
-
-      // if (hit) 
-      // console.log(hit)
-
+      let hit = rectangleCollision(players[p], block)
       if (hit === "top" || hit === "bottom") {
-        // cats[p].vy = 0;
+        // players[p].vy = 0;
       }
 
       if (hit === "left" || hit === "right") {
-        // cats[p].vx = 0;
+        // players[p].vx = 0;
+      }
+    })
+
+    explosions.forEach(exp => {
+      if (players[p] && hitTestRectangle(players[p],exp)) {
+        killPlayer(players[p],p);
       }
     })
   }
 
+}
+
+function killPlayer(player,id) {
+  console.log(`player "${player.name}" killed`)
+
+  let rectangle = new PIXI.Rectangle(player.typePlayer * 24, 12 * 24, 24, 24);
+  player.children[0].texture.frame = rectangle;
+  delete players[id];
+
+  for (let i = 1; i < 8; i++) {
+    setTimeout(() => {
+      rectangle = new PIXI.Rectangle(player.typePlayer * 24, (12 + i) * 24, 24, 24);
+      player.children[0].texture.frame = rectangle;
+    }, 200 * i);
+  }
+
+  setTimeout(() => {
+    playersLayout.removeChild(player);
+  }, 1800);
+
+}
+
+function animatePlayer(player,id) {
+
+  const time = 500;
+  const phase = +new Date() % time < (time / 2) ? 1 : 0;
+
+  if (player.vx > 0) {
+    let rectangle = new PIXI.Rectangle(player.typePlayer * 24, (4 + phase) * 24, 24, 24);
+    player.children[0].texture.frame = rectangle;
+  } else if (player.vx < 0) {
+    let rectangle = new PIXI.Rectangle(player.typePlayer * 24, (7 + phase) * 24, 24, 24);
+    player.children[0].texture.frame = rectangle;
+  } else if (player.vy > 0) {
+    let rectangle = new PIXI.Rectangle(player.typePlayer * 24, (1 + phase) * 24, 24, 24);
+    player.children[0].texture.frame = rectangle;
+  } else if (player.vy < 0) {
+    let rectangle = new PIXI.Rectangle(player.typePlayer * 24, (10 + phase) * 24, 24, 24);
+    player.children[0].texture.frame = rectangle;
+  } else if (player.vy === 0 || player.vx === 0) {
+    let rectangle = new PIXI.Rectangle(player.typePlayer * 24, 0 * 24, 24, 24);
+    players[id].children[0].texture.frame = rectangle;
+  }
 }
 
 socket.on("welcome", ({ players, map }) => {
@@ -788,6 +909,15 @@ socket.on("welcome", ({ players, map }) => {
 
   loader
     .add("tileset", `${serverUrl}/public/bomberman.png`)
+    .add("grass", `${serverUrl}/public/grass.png`)
+    .add("block1", `${serverUrl}/public/block1.png`)
+    .add("block2", `${serverUrl}/public/block2.png`)
+    .add("block3", `${serverUrl}/public/block3.png`)
+    .add("down", `${serverUrl}/public/down.png`)
+    .add("left", `${serverUrl}/public/left.png`)
+    .add("right", `${serverUrl}/public/right.png`)
+    .add("topleft", `${serverUrl}/public/topleft.png`)
+    .add("topright", `${serverUrl}/public/topright.png`)
     .on("progress", loadProgressHandler)
     .load(setup);
 })
@@ -796,7 +926,6 @@ window.addEventListener(
   'load',
   function () {
       var canvas = document.getElementsByTagName('canvas')[0];
-
       fullscreenify(canvas);
   },
   false
@@ -810,7 +939,7 @@ function fullscreenify(canvas) {
   resize(canvas);
 
   function resize(canvas) {
-      var scale = {x: 1, y: 1};
+      var scale:any = {x: 1, y: 1};
       scale.x = (window.innerWidth - 10) / canvas.width;
       scale.y = (window.innerHeight - 10) / canvas.height;
       
