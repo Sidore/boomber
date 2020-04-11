@@ -2,7 +2,7 @@ sudo: false
 
 language: node_js
 node_js:
-  - 9
+  - 12
 
 branches:
   only:
@@ -21,4 +21,4 @@ deploy:
   provider: heroku
   app: "boomber"
   api_key:
-    secure: "a6691e4d-8526-4211-bee0-04beffcdc2ed"
+    secure: "63e88958-277a-4552-bc20-24bab81e97cc"
