@@ -1,24 +1,18 @@
 sudo: false
-
 language: node_js
 node_js:
-  - 12
-
+- 12
 branches:
   only:
-    - master
-
+  - master
 install:
-  - npm install
-
+- npm install
 cache:
   directories:
-    - node_modules
-
+  - node_modules
 dist: trusty
-
 deploy:
   provider: heroku
-  app: "boomber"
+  app: boomber
   api_key:
-    secure: "63e88958-277a-4552-bc20-24bab81e97cc"
+    secure: WNNC9P8WflU+BR0OX+Xrp3zYQuLHKItCWj/usLBVblfXObDnP/jfl9US1r97tWWmSPtI7e0iQD1DVldeV85/MEu11goTQFSuP7hHpSzyc/RwQQddjU1oUHxKZJPsVpqBT3OCFOcf+7e+r6Ixn009d26NhRCCpNDoZHZLngUqO95IJy3R44g4YfNssLO8KScmUZA2SLL9L3W8jy7wjXQXnH7lWIzZVz0hamodiuBLKQ/4aw+/l6C8Vsrvmwhd2+XUWav5ctZ0//J9t8aUAkm3e+NfyhxrxZf+uBcfwn8lx2RN8UsnnSc2oukaQzRE2eTGhVVReKZpbsQEJMUx44I2ORkzXVuLsAvmolQkEylXEPTTYUh+ec/8oiXoZMhXUm55z+rtJ2MEqYIE3emFCuCZGNJ9mvymXMjQJq6GptzZQshZVOq3k5tK2iDZplX9xpQlXkFwSJAPmhqOelVlRud7JABAzL1FgaEBTaFdyhWTe6JCLfXX17C/ARKAZl/aDGNbza/R8r7Jm0467OwD4E2PvQysvLZfhLgI7CJrAoOASrm7ZYwPmnuVr45JVYyjRPYE75pKh4Rqqv5ezkfC3yjhHEmT+JhjXkoKOOpT2GCmjmEodBzsVpPsIhA4A/ZRQKQuX5e7Tja2n+dLq/nADLIfgAah0Ml3OEAmtXXFCuPrZ+E=
