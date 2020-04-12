@@ -147,7 +147,7 @@ io.on("connection", (socket) => {
     })
 
     socket.on("bomb", (data) => {
-        let id = Math.round(Math.random() * 1000);
+        let id = Math.round(Math.random() * 10000);
         console.log("bomb", data);
 
         io.emit("bomb", {
@@ -165,6 +165,10 @@ io.on("connection", (socket) => {
                 level: data.level
             });
         }, 2000)
+    });
+
+    socket.on("immediateExplode", (bomb) => {
+        io.emit("immediateExplode", bomb)
     })
 
     socket.on('disconnect', (data) => {

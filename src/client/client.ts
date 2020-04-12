@@ -33,8 +33,8 @@ const mapLayout = new PIXI.Container();
 const playersLayout = new PIXI.Container();
 
 stage.addChild(backLayot);
-stage.addChild(mapLayout);
 stage.addChild(bombsLayot);
+stage.addChild(mapLayout);
 stage.addChild(playersLayout);
 
 socket.on('movement', function (msg) {
@@ -62,11 +62,33 @@ function playerImage(type?): PIXI.Sprite {
 }
 
 function setBomb({ id, x, y }) {
-  let bomb = new PIXI.Graphics() as any;
-  bomb.lineStyle(1, 0xcccccc, 1);
-  bomb.beginFill(0x000000);
-  bomb.drawCircle(20, 20, 15);
-  bomb.endFill();
+  let bomb = new PIXI.Container() as any;
+  
+  let T = resources["bomb"].texture.baseTexture;
+  let stage1 = new PIXI.Rectangle(0, 0, 16, 16);
+  let stage2 = new PIXI.Rectangle(17, 0, 16, 16);
+  let stage3 = new PIXI.Rectangle(34, 0, 16, 16);
+
+  let sprite = new Sprite(new PIXI.Texture(T, stage1));
+  sprite.height = sprite.width = 40;
+
+  setTimeout(() => {
+    sprite.texture.frame = stage2;
+  }, 300)
+  setTimeout(() => {
+    sprite.texture.frame = stage3;
+  }, 600)
+  setTimeout(() => {
+    sprite.texture.frame = stage1;
+  }, 900)
+  setTimeout(() => {
+    sprite.texture.frame = stage2;
+  }, 1200)
+  setTimeout(() => {
+    sprite.texture.frame = stage3;
+  }, 1500)
+
+  bomb.addChild(sprite);
   bomb.x = x;
   bomb.y = y;
   bomb.bombId = id;
@@ -74,13 +96,10 @@ function setBomb({ id, x, y }) {
   bombsLayot.addChild(bomb);
 }
 
-function explodeBomb({ id, level }) {
-  const bomb = bombs[id] as PIXI.Graphics;
+function explodeBomb({ id, level }, time = 1000) {
+  const bomb = bombs[id];
   const size = Number(level)
-  bomb.lineStyle(1, 0xcccccc, 1);
-  bomb.beginFill(0xff0000);
-  bomb.drawRect(1, 1, 39, 39);
-  bomb.endFill();
+
   const explodeHorizontal: any = new PIXI.Graphics;
   const explodeVertical: any = new PIXI.Graphics;
   // for (const id in players) {
@@ -115,14 +134,19 @@ function explodeBomb({ id, level }) {
     blocks
       .filter(b => b.type === 1)
       .forEach((bl) => {
-      const index = blocks.findIndex(b => b === bl)
+      
       if ((hitTestRectangle(bl, explodeHorizontal) || hitTestRectangle(bl, explodeVertical))) {
-        // console.log("hitBombZone Block");
-        mapLayout.removeChild(bl);
-        blocks.splice(index, 1);
-        // console.log("block explode", { x: bl.x, y: bl.y })
+        exploadBlock(bl)
         socket.emit("block explode", { x: bl.x, y: bl.y });
       }
+
+    // for (let id in bombs) { // TODO bomb chain
+    //   let bomb = bombs[id];
+    //   if ((hitTestRectangle(bomb, explodeHorizontal) || hitTestRectangle(bomb, explodeVertical))) {
+    //     immediateExplode(bomb);
+    //   }
+
+    // }
 
     });
   // }
@@ -132,7 +156,7 @@ function explodeBomb({ id, level }) {
     bombsLayot.removeChild(bomb);
     bombsLayot.removeChild(explodeHorizontal);
     bombsLayot.removeChild(explodeVertical);
-  }, 1000);
+  }, time);
 
 }
 
@@ -188,10 +212,45 @@ function explodeLimit(horizontal, vertical, size) {
   })
 }
 
+function exploadBlock(block) {
+
+  const index = blocks.findIndex(b => b === block)
+  blocks.splice(index, 1);
+  
+  console.log("block hitted", block, index)
+
+  let T = resources["blockdestroy"].texture.baseTexture;
+  let coef = 40 / 16;
+  if (T.height == 16) {
+    T.width *= coef;
+    T.height *= coef;
+  }
+  
+  let rectangle = new PIXI.Rectangle(0,0,40,40);
+  block.children[0].texture = new PIXI.Texture(T, rectangle)
+
+  for(let i = 1; i < 7; i++) {
+    setTimeout(() => {
+      block.children[0].texture.frame = new PIXI.Rectangle(i * 40 + i * coef, 0,40,40);
+    }, 200 * i);
+  }
+
+  setTimeout(() => {
+    mapLayout.removeChild(block);
+    
+  }, 1500);
+
+}
+
+function immediateExplode(bomb) {
+  socket.emit('immediateExplode', bomb)
+}
+
 function bombHandler(bomb) {
   switch (bomb.state) {
     case "set": setBomb(bomb); break;
     case "explode": explodeBomb(bomb); break;
+    case "immediateExplode": explodeBomb(bomb); break;
   }
 }
 
@@ -625,6 +684,8 @@ function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
   // rectangle.drawRect(1, 1, cell - 1, cell - 1);
   // rectangle.endFill();
 
+  
+
   let tileTitle = "";
 
   if (type === 1 || type === 2) {
@@ -653,6 +714,17 @@ function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
   rectangle.y = i * cell;
   rectangle.type = type;
   blocks.push(rectangle);
+
+  if (type === 2) {
+    const grass = resources["grassshadow"].texture.baseTexture;
+    grass.width = 40;
+    grass.height = 40;
+    sprite = new Sprite(new PIXI.Texture(grass));
+    sprite.x = rectangle.x;
+    sprite.y = rectangle.y + rectangle.height;
+    backLayot.addChild(sprite);
+  }
+
   return rectangle;
 }
 
@@ -696,6 +768,8 @@ function setup() {
   backLayot.addChild(sprite);
 
   labirint();
+
+  
 
   for (let a in globalPlayers) {
     newPlayerHandler(globalPlayers[a].name);
@@ -906,18 +980,24 @@ socket.on("welcome", ({ players, map }) => {
   });
 
   socket.emit("required sync");
-
+  
   loader
     .add("tileset", `${serverUrl}/public/bomberman.png`)
+    .add("bomb", `${serverUrl}/public/bomb.png`)
+    .add("bomblevel", `${serverUrl}/public/bomblevel.png`)
     .add("grass", `${serverUrl}/public/grass.png`)
+    .add("grassshadow", `${serverUrl}/public/grassshadow.png`)
     .add("block1", `${serverUrl}/public/block1.png`)
     .add("block2", `${serverUrl}/public/block2.png`)
     .add("block3", `${serverUrl}/public/block3.png`)
+    .add("blockdestroy", `${serverUrl}/public/blockdestroy.png`)
     .add("down", `${serverUrl}/public/down.png`)
     .add("left", `${serverUrl}/public/left.png`)
     .add("right", `${serverUrl}/public/right.png`)
     .add("topleft", `${serverUrl}/public/topleft.png`)
     .add("topright", `${serverUrl}/public/topright.png`)
+    .add("monsters", `${serverUrl}/public/12.gif`)
+    .add("hero", `${serverUrl}/public/13.gif`)
     .on("progress", loadProgressHandler)
     .load(setup);
 })
