@@ -38,6 +38,7 @@ interface IUserCollection {
 
 let userCollection: IUserCollection = {};
 let lab = [];
+let bonuses = [];
 
 function labirint(width = 17, height = 17, cell = 40) {
     let border = [];
@@ -87,6 +88,32 @@ function labirint(width = 17, height = 17, cell = 40) {
 
 labirint();
 const io = socketServer(httpServer);
+
+setInterval(() => {
+    let id = Math.round(Math.random() * 10000);
+    let type = Math.round(Math.random() * 17) % 3 + 1;
+    let x,y;
+
+    while (!x && !y) {
+        let tempX = Math.round(Math.random() * 16)
+        let tempY = Math.round(Math.random() * 16)
+
+        if (lab[tempY][tempX] === 0) {
+            x = tempX * 40;
+            y = tempY * 40;
+        }
+    }
+
+    console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
+    io.emit("bonus appear", {
+        type,
+        x,
+        y,
+        id
+    })
+}, 15000)
+
+
 io.on("connection", (socket) => {
 
     socket.emit("welcome", { players: userCollection, map: lab });
@@ -118,21 +145,26 @@ io.on("connection", (socket) => {
     })
 
     socket.on("direction", (data) => {
-        io.emit("move block", {
+        userCollection[socket.id] && io.emit("move block", {
             player: userCollection[socket.id].name,
             move: data
         })
     })
 
+    socket.on("playerHitBonus", (data) => {
+        console.log("playerHitBonus", data)
+        io.emit("player hit bonus", data)
+    })
+
     socket.on("sync positon", ({ x, y }) => {
-        io.emit("sync positon", {
+        userCollection[socket.id] && io.emit("sync positon", {
             player: userCollection[socket.id].name,
             x, y
         })
     })
 
     socket.on("required sync", () => {
-        console.log( userCollection[socket.id].name, "required positon sync")
+        console.log( userCollection[socket.id] && userCollection[socket.id].name, "required positon sync")
         io.emit("required sync")
     })
 
@@ -147,33 +179,44 @@ io.on("connection", (socket) => {
     })
 
     socket.on("bomb", (data) => {
-        let id = Math.round(Math.random() * 10000);
-        console.log("bomb", data);
 
-        io.emit("bomb", {
-            id,
-            state: "set",
-            level: data.level,
-            x: data.x,
-            y: data.y,
-        });
+        if (data.action) {
+            if (data.action === "explode") {
+                io.emit("bomb", {
+                    id: data.id,
+                    state: "explode",
+                    level: data.level
+                });
+            }
+        } else {
+            let id = Math.round(Math.random() * 10000);
+            console.log("bomb", data);
 
-        setTimeout(() => {
             io.emit("bomb", {
                 id,
-                state: "explode",
-                level: data.level
+                state: "set",
+                level: data.level,
+                x: data.x,
+                y: data.y,
+                player: data.player
             });
-        }, 2000)
-    });
 
-    socket.on("immediateExplode", (bomb) => {
-        io.emit("immediateExplode", bomb)
-    })
+            if (!data.action) {
+                setTimeout(() => {
+                    io.emit("bomb", {
+                        id,
+                        state: "explode",
+                        level: data.level
+                    });
+                }, 2000)
+            }
+        }
+        
+    });
 
     socket.on('disconnect', (data) => {
         console.log('user disconnected', data, socket.id, userCollection);
         if (userCollection[socket.id])
-            io.emit("remove user", userCollection[socket.id].name)
+            io.emit("remove user", userCollection[socket.id] && userCollection[socket.id].name || null)
     });
 })

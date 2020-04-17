@@ -6,6 +6,7 @@ const root = document.getElementById("application");
 let currentUser, 
     globalPlayers, 
     bombs = {},
+    bonuses = [],
     explosions = [], 
     mapBlocks;
 let players: any = {},
@@ -17,8 +18,8 @@ const dev = location && location.hostname == "localhost" || false;
 const serverUrl = dev ? "http://localhost:3333" : "";
 const socket = io(serverUrl);
 const application = new PIXI.Application({
-  width: 681,
-  height: 681,
+  width: 680,
+  height: 680,
   antialias: true,
   transparent: false,
   resolution: 1,
@@ -31,10 +32,11 @@ const backLayot = new PIXI.Container();
 const bombsLayot = new PIXI.Container();
 const mapLayout = new PIXI.Container();
 const playersLayout = new PIXI.Container();
-
+const bonusLayout = new PIXI.Container();
 stage.addChild(backLayot);
 stage.addChild(bombsLayot);
 stage.addChild(mapLayout);
+stage.addChild(bonusLayout);
 stage.addChild(playersLayout);
 
 socket.on('movement', function (msg) {
@@ -61,7 +63,7 @@ function playerImage(type?): PIXI.Sprite {
   return sprite;
 }
 
-function setBomb({ id, x, y }) {
+function setBomb({ id, x, y, level, player }) {
   let bomb = new PIXI.Container() as any;
   
   let T = resources["bomb"].texture.baseTexture;
@@ -91,19 +93,22 @@ function setBomb({ id, x, y }) {
   bomb.addChild(sprite);
   bomb.x = x;
   bomb.y = y;
-  bomb.bombId = id;
+  bomb.id = id;
+  bomb.player = player;
+  bomb.level = level;
   bombs[id] = bomb;
   bombsLayot.addChild(bomb);
 }
 
 function explodeBomb({ id, level }, time = 1000) {
   const bomb = bombs[id];
+
+  if (!bomb) return;
+
   const size = Number(level)
 
   const explodeHorizontal: any = new PIXI.Graphics;
   const explodeVertical: any = new PIXI.Graphics;
-  // for (const id in players) {
-  //   const player = players[id];
     explodeHorizontal.lineStyle(1, 0xcccccc, 1);
     explodeHorizontal.beginFill(0xff0000);
     explodeHorizontal.drawRect(1, 1, 40 * 2 * size + 39, 40 * 2 * size + 39);
@@ -125,12 +130,7 @@ function explodeBomb({ id, level }, time = 1000) {
     explosions.push(explodeVertical,explodeHorizontal);
     explodeLimit(explodeHorizontal, explodeVertical, size);
 
-    // if (hitTestRectangle(player, explodeHorizontal) || hitTestRectangle(player, explodeVertical)) {
-    //   console.log(player, explodeHorizontal,hitTestRectangle(player, explodeHorizontal), explodeVertical, hitTestRectangle(player, explodeVertical))
-    //   playersLayout.removeChild(player);
-    //   delete players[id];
-    // }
-
+    delete bombs[id];
     blocks
       .filter(b => b.type === 1)
       .forEach((bl) => {
@@ -139,17 +139,28 @@ function explodeBomb({ id, level }, time = 1000) {
         exploadBlock(bl)
         socket.emit("block explode", { x: bl.x, y: bl.y });
       }
-
-    // for (let id in bombs) { // TODO bomb chain
-    //   let bomb = bombs[id];
-    //   if ((hitTestRectangle(bomb, explodeHorizontal) || hitTestRectangle(bomb, explodeVertical))) {
-    //     immediateExplode(bomb);
-    //   }
-
-    // }
-
     });
-  // }
+
+
+  for (let id in bombs) { // TODO bomb chain
+    let bombTouched = bombs[id];
+    if ((hitTestRectangle(bombTouched, explodeHorizontal) || hitTestRectangle(bombTouched, explodeVertical))) {
+      // console.log({
+      //   bomb: bombTouched,
+      //   horizontal: hitTestRectangle(bombTouched, explodeHorizontal),
+      //   vertical: hitTestRectangle(bombTouched, explodeVertical),
+
+      // })
+      if (bombTouched)
+      setTimeout(() => {
+        explodeBomb({
+          id: bombTouched.id,
+          level: bombTouched.level
+        });
+      }, 300)
+    }
+
+  }
 
   setTimeout(() => {
     explosions = explosions.filter(item => item !== explodeHorizontal && item !== explodeVertical)
@@ -159,7 +170,7 @@ function explodeBomb({ id, level }, time = 1000) {
   }, time);
 
 }
-
+ 
 function explodeLimit(horizontal, vertical, size) {
   const centerX = horizontal.x + size * 40;
   const centerY = vertical.y + size * 40;
@@ -242,15 +253,11 @@ function exploadBlock(block) {
 
 }
 
-function immediateExplode(bomb) {
-  socket.emit('immediateExplode', bomb)
-}
 
 function bombHandler(bomb) {
   switch (bomb.state) {
     case "set": setBomb(bomb); break;
     case "explode": explodeBomb(bomb); break;
-    case "immediateExplode": explodeBomb(bomb); break;
   }
 }
 
@@ -258,7 +265,7 @@ function createPlayer(title: string) {
   let player = new PIXI.Container() as any;
   // let catT = resources["tileset"].texture;
   let typePlayer = Math.round(Math.random() * 7);
-  console.log("typePlayer", typePlayer)
+  // console.log("typePlayer", typePlayer)
   let image = playerImage(typePlayer);
 
   // let rectangle = new PIXI.Rectangle(x * 24, y* 24, 24, 24);
@@ -280,10 +287,11 @@ function createPlayer(title: string) {
   player.addChild(mask);
   player.addChild(text);
   player.typePlayer = typePlayer;
-  player.bombLevel = 2;
+  player.bombLevel = 1;
   player.bombCount = 1;
   player.name = title;
-  console.log(player.typePlayer)
+  player.speed = 2;
+  // console.log(player.typePlayer)
   return player;
 }
 
@@ -291,7 +299,7 @@ function newPlayerHandler(player) {
   console.log("new player added", player);
   const playerObj = createPlayer(player);
   players[player] = playerObj;
-  console.log(players)
+  // console.log(players)
   playersLayout.addChild(playerObj);
 }
 
@@ -728,6 +736,32 @@ function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
   return rectangle;
 }
 
+function playerHitBonus(player, index, {id, property , increment}){
+  let indexB = bonuses.findIndex(b => b.id === id)
+  if (indexB !== -1) {
+    let bonus = bonuses.splice(indexB, 1)[0];
+    bonusLayout.removeChild(bonus);
+  }
+  socket.emit("playerHitBonus", {
+    playerId: index,
+    property,
+    increment,
+    bonusId: id 
+  })
+}
+
+function playerHitBonusHandler({playerId,property,increment, bonusId}) {
+  let index = bonuses.findIndex(b => b.id === bonusId)
+  if (index !== -1) {
+    let bonus = bonuses.splice(index, 1)[0];
+    bonusLayout.removeChild(bonus);
+  }
+  let playerObj = players[playerId];
+  playerObj[property] += increment;
+
+  console.log(playerObj ,property, increment )
+}
+
 function labirint(cell = 40) {
 
   let height = mapBlocks.length;
@@ -757,6 +791,44 @@ function labirint(cell = 40) {
       }
     }
   }
+}
+
+function bonusAppearHandler({id, type ,x ,y }) {
+  console.log('bonusAppearHandler',x,y);
+  let bonus = new PIXI.Container() as any;
+  let tileTitle = "bomblevel";
+
+  switch(type) {
+    case 1: {
+      bonus.property = "bombLevel";
+      bonus.increment = 1;
+      break;
+    }
+    case 2: {
+      bonus.property = "bombCount";
+      tileTitle = "bombcount";
+      bonus.increment = 1;
+      break;
+    }
+    case 3: {
+      bonus.property = "speed";
+      tileTitle = "speed";
+      bonus.increment = 1;
+      break;
+    }
+  }
+
+  let T = resources[tileTitle].texture.baseTexture;
+  T.width = 40;
+  T.height = 40;
+  let sprite = new Sprite(new PIXI.Texture(T));
+  bonus.addChild(sprite);
+  bonus.id = id;
+  bonus.x = x;
+  bonus.y = y;
+  
+  bonuses.push(bonus);
+  bonusLayout.addChild(bonus);
 }
 
 function setup() {
@@ -799,6 +871,9 @@ function setup() {
   socket.on("sync positon", syncPositionHandler);
   socket.on("bomb", bombHandler);
 
+  socket.on("bonus appear", bonusAppearHandler);
+  socket.on("player hit bonus", playerHitBonusHandler);
+
   let left = board("ArrowLeft"),
     up = board("ArrowUp"),
     right = board("ArrowRight"),
@@ -806,21 +881,35 @@ function setup() {
     space = board(" "),
     enter = board("Enter")
 
-  let speed = 5;
-
   space.press = enter.press = () => {
-    const shiftX = playerObj.x % 40;
-    const shiftY = playerObj.y % 40;
-    socket.emit('bomb', {
-      x: playerObj.x - (shiftX > 20 ? -(40 - shiftX) : shiftX),
-      y: playerObj.y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
-      level: playerObj.bombLevel
-    })
+
+    let count = 0;
+
+    for (let bombId in bombs) {
+      if (bombs[bombId].player === playerObj.name) {
+        count++;
+      }
+    }
+
+    // console.log(count, playerObj)
+
+    if (count < playerObj.bombCount) {
+      const shiftX = playerObj.x % 40;
+      const shiftY = playerObj.y % 40;
+      socket.emit('bomb', {
+        x: playerObj.x - (shiftX > 20 ? -(40 - shiftX) : shiftX),
+        y: playerObj.y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
+        level: playerObj.bombLevel,
+        player: playerObj.name
+      })
+    } else {
+      console.log("too many boombs", count, playerObj.bombCount)
+    }
   }
 
   left.press = () => {
     socket.emit('direction', {
-      x: -speed,
+      x: -playerObj.speed,
       // y : 0
     });
 
@@ -836,7 +925,7 @@ function setup() {
   //Up
   up.press = () => {
     socket.emit('direction', {
-      y: -speed,
+      y: -playerObj.speed,
       // x : 0
     });
   };
@@ -850,7 +939,7 @@ function setup() {
   //Right
   right.press = () => {
     socket.emit('direction', {
-      x: speed,
+      x: playerObj.speed,
       // y : 0
     });
   };
@@ -867,7 +956,7 @@ function setup() {
   down.press = () => {
     socket.emit('direction', {
       // x : 0,
-      y: speed
+      y: playerObj.speed
     });
   };
 
@@ -921,6 +1010,12 @@ function play(delta) {
     explosions.forEach(exp => {
       if (players[p] && hitTestRectangle(players[p],exp)) {
         killPlayer(players[p],p);
+      }
+    })
+
+    bonuses.forEach(bonus => {
+      if (players[p] && hitTestRectangle(players[p],bonus)) {
+        playerHitBonus(players[p],p,bonus);
       }
     })
   }
@@ -985,6 +1080,8 @@ socket.on("welcome", ({ players, map }) => {
     .add("tileset", `${serverUrl}/public/bomberman.png`)
     .add("bomb", `${serverUrl}/public/bomb.png`)
     .add("bomblevel", `${serverUrl}/public/bomblevel.png`)
+    .add("bombcount", `${serverUrl}/public/bombcount.png`)
+    .add("speed", `${serverUrl}/public/speed.png`)
     .add("grass", `${serverUrl}/public/grass.png`)
     .add("grassshadow", `${serverUrl}/public/grassshadow.png`)
     .add("block1", `${serverUrl}/public/block1.png`)
@@ -997,7 +1094,7 @@ socket.on("welcome", ({ players, map }) => {
     .add("topleft", `${serverUrl}/public/topleft.png`)
     .add("topright", `${serverUrl}/public/topright.png`)
     .add("monsters", `${serverUrl}/public/12.gif`)
-    .add("hero", `${serverUrl}/public/13.gif`)
+    // .add("hero", `${serverUrl}/public/13.gif`)
     .on("progress", loadProgressHandler)
     .load(setup);
 })
