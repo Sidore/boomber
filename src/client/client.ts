@@ -736,7 +736,7 @@ function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
   return rectangle;
 }
 
-function playerHitBonus(player, index, {id, property , increment}){
+function playerHitBonus(player, index, {id, property , increment, x, y}){
   let indexB = bonuses.findIndex(b => b.id === id)
   if (indexB !== -1) {
     let bonus = bonuses.splice(indexB, 1)[0];
@@ -746,7 +746,8 @@ function playerHitBonus(player, index, {id, property , increment}){
     playerId: index,
     property,
     increment,
-    bonusId: id 
+    bonusId: id,
+    x,y
   })
 }
 
@@ -788,6 +789,14 @@ function labirint(cell = 40) {
           break;}
         case 2: mapLayout.addChild(createBlock(2, i, j, cell)); break;
         case 3: mapLayout.addChild(createBlock(3, i, j, cell)); break;
+        case 4: ;
+        case 5: ;
+        case 6: bonusAppearHandler({
+          id: Math.round(Math.random() * 10000),
+          type: mapBlocks[i][j] - 3,
+          x: j * cell,
+          y: i * cell
+        }) 
       }
     }
   }
@@ -841,8 +850,6 @@ function setup() {
 
   labirint();
 
-  
-
   for (let a in globalPlayers) {
     newPlayerHandler(globalPlayers[a].name);
   }
@@ -861,10 +868,15 @@ function setup() {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
   });
 
+  socket.on("lab sync", ({map}) => {
+    mapBlocks = map;
+    labirint();
+  })
+
   //
-  // setInterval(() => {
-  //   socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-  // }, 500)
+  setInterval(() => {
+    socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
+  }, 500)
 
   socket.on("move block", moveBlockHandler);
   socket.on("remove user", removeUserHandler);

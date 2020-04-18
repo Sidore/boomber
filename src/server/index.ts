@@ -38,7 +38,7 @@ interface IUserCollection {
 
 let userCollection: IUserCollection = {};
 let lab = [];
-let bonuses = [];
+let bonusCount = 0;
 
 function labirint(width = 17, height = 17, cell = 40) {
     let border = [];
@@ -68,7 +68,7 @@ function labirint(width = 17, height = 17, cell = 40) {
     for (let i = 1; i < height - 1; i++) {
         let row = [];
         for (let j = 1; j < width - 1; j++) {
-            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.3) {
+            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.4) {
                 row[j] = 1;
             }
         }
@@ -89,7 +89,9 @@ function labirint(width = 17, height = 17, cell = 40) {
 labirint();
 const io = socketServer(httpServer);
 
+
 setInterval(() => {
+    if (bonusCount > 5) return;
     let id = Math.round(Math.random() * 10000);
     let type = Math.round(Math.random() * 17) % 3 + 1;
     let x,y;
@@ -101,18 +103,23 @@ setInterval(() => {
         if (lab[tempY][tempX] === 0) {
             x = tempX * 40;
             y = tempY * 40;
+            lab[tempY][tempX] = 3 + type;
         }
     }
 
     console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
+    bonusCount++;
     io.emit("bonus appear", {
         type,
         x,
         y,
         id
     })
-}, 15000)
+}, 25000)
 
+// setInterval(() => {
+//     io.emit("lab sync", {map: lab})
+// }, 2000)
 
 io.on("connection", (socket) => {
 
@@ -152,7 +159,14 @@ io.on("connection", (socket) => {
     })
 
     socket.on("playerHitBonus", (data) => {
-        console.log("playerHitBonus", data)
+        // console.log("playerHitBonus", data)
+        let xBlock = (data.x - data.x % 40) / 40
+        let yBlock = (data.y - data.y % 40) / 40
+
+        console.log("bonus removed at", xBlock, yBlock);
+
+        lab[yBlock][xBlock] = 0;
+        bonusCount--;
         io.emit("player hit bonus", data)
     })
 
@@ -172,10 +186,9 @@ io.on("connection", (socket) => {
         let xBlock = (x - x % 40) / 40
         let yBlock = (y - y % 40) / 40
 
-        console.log(x, y, xBlock, yBlock);
+        console.log("block removed at", xBlock, yBlock);
 
-
-        lab[xBlock][yBlock] = 0;
+        lab[yBlock][xBlock] = 0;
     })
 
     socket.on("bomb", (data) => {
