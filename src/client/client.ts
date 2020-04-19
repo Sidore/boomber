@@ -290,186 +290,134 @@ function animateExplosion(explodeHorizontal,explodeVertical, {centerX,centerY}, 
     for (let i=0; i < sizeH; i++) {
       let currentTileX = explodeHorizontalX + 40 * i;
       let currentTileImage;
+      let currentTileImageX;
       let currentSprite;
       let phase = 2;
       let phaseShift = 17;
+
       if (currentTileX === centerX - size * 40) {
-        currentTileImage = rect(leftTile + phase * phaseShift);
+        currentTileImageX = leftTile;
       } else if (currentTileX === centerX + size * 40){
-        currentTileImage = rect(rightTile + phase * phaseShift);
+        currentTileImageX = rightTile;
       } else if (currentTileX === centerX) {
-        currentTileImage = rect(centerTile + phase * phaseShift);
+        currentTileImageX = centerTile;
       } else {
-        currentTileImage = rect(horizontalTile + phase * phaseShift);
+        currentTileImageX = horizontalTile;
       }
+
+      currentTileImage = rect(currentTileImageX + phase * phaseShift);
       currentSprite = new Sprite(new PIXI.Texture(T, currentTileImage));
       currentSprite.height = currentSprite.width = 40;
       currentSprite.x = 40 * i;
       explodeHorizontal.addChild(currentSprite);
       explodeHorizontal.scale.set(1);
-      // explodeHorizontal.width = Math.round(explodeHorizontal.width);
-      // explodeHorizontal.height = Math.round(explodeHorizontal.height);
+      
+      setTimeout(() => {
+        phase--;
+        currentTileImage = rect(currentTileImageX + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 150);
 
+      setTimeout(() => {
+        phase--;
+        currentTileImage = rect(currentTileImageX + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 300);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageX + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 450);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageX + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 600);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageX + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 750);
     }
 
     for (let i=0; i < sizeV; i++) {
+      // let currentTileY = explodeVerticalY + 40 * i;
+      // let currentTileImage;
+      // let currentSprite;
+      // let phase = 2;
+      // let phaseShift = 17;
+      // if (currentTileY === centerY - size * 40) {
+      //   currentTileImage = rect(topTile + phase * phaseShift);
+      // } else if (currentTileY === centerY + size * 40){
+      //   currentTileImage = rect(downTile + phase * phaseShift);
+      // } else if (currentTileY === centerY) {
+      //   currentTileImage = rect(centerTile + phase * phaseShift);
+      // } else {
+      //   currentTileImage = rect(verticalTile + phase * phaseShift);
+      // }
+      // currentSprite = new Sprite(new PIXI.Texture(T, currentTileImage));
+      // currentSprite.height = currentSprite.width = 40;
+      // currentSprite.y = 40 * i;
+      // explodeVertical.addChild(currentSprite);
+      // explodeVertical.scale.set(1);
+      
       let currentTileY = explodeVerticalY + 40 * i;
       let currentTileImage;
+      let currentTileImageY;
       let currentSprite;
       let phase = 2;
       let phaseShift = 17;
+
       if (currentTileY === centerY - size * 40) {
-        currentTileImage = rect(topTile + phase * phaseShift);
+        currentTileImageY = topTile;
       } else if (currentTileY === centerY + size * 40){
-        currentTileImage = rect(downTile + phase * phaseShift);
+        currentTileImageY = downTile;
       } else if (currentTileY === centerY) {
-        currentTileImage = rect(centerTile + phase * phaseShift);
+        currentTileImageY = centerTile;
       } else {
-        currentTileImage = rect(verticalTile + phase * phaseShift);
+        currentTileImageY = verticalTile;
       }
+
+      currentTileImage = rect(currentTileImageY + phase * phaseShift);
       currentSprite = new Sprite(new PIXI.Texture(T, currentTileImage));
       currentSprite.height = currentSprite.width = 40;
       currentSprite.y = 40 * i;
-      explodeVertical.addChild(currentSprite);
-      explodeVertical.scale.set(1);
-      // explodeVertical.width = Math.round(explodeHorizontal.width);
-      // explodeVertical.height = Math.round(explodeHorizontal.height);
+      explodeHorizontal.addChild(currentSprite);
+      explodeHorizontal.scale.set(1);
+      
+      setTimeout(() => {
+        phase--;
+        currentTileImage = rect(currentTileImageY + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 150);
+
+      setTimeout(() => {
+        phase--;
+        currentTileImage = rect(currentTileImageY + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 300);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageY + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 450);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageY + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 600);
+
+      setTimeout(() => {
+        phase++;
+        currentTileImage = rect(currentTileImageY + phase * phaseShift);
+        currentSprite.texture.frame = currentTileImage;
+      }, 750);
     }
-
-    
-    
-    // for(let i=0; i < size * 2 + 1; i++) {
-    //   let phase = 2;
-    //   let phaseShift = 17;
-    //   let T = resources["expload"].texture.baseTexture;
-    //   let horizontalTile, vertivalTile;
-      
-    //   if (i == 0) {
-    //     vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //     horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //   } else if (i == size * 2) {
-    //     horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //     vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //   } else if (i == size) {
-    //     horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //   } else {
-    //     horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //     vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //   }
-      
-    //   let spriteH = new Sprite(new PIXI.Texture(T, horizontalTile));
-    //   let spriteV = new Sprite(new PIXI.Texture(T, vertivalTile));
-    //   spriteH.height = spriteH.width = spriteV.height = spriteV.width = 40;
-
-    //   spriteH.x = i * 40;
-    //   spriteV.y = i * 40;
-    //   explodeHorizontal.addChild(spriteH);
-    //   explodeVertical.addChild(spriteV);
-
-    //   setTimeout(() => {
-    //     phase--;
-
-    //     if (i == 0) {
-    //       vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //       horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //     } else if (i == size * 2) {
-    //       horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //     } else if (i == size) {
-    //       horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     } else {
-    //       horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //     }
-
-    //     spriteV.texture.frame = vertivalTile;
-    //     spriteH.texture.frame = horizontalTile;
-    //   }, 150);
-
-    //   setTimeout(() => {
-    //     phase--;
-
-    //     if (i == 0) {
-    //       vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //       horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //     } else if (i == size * 2) {
-    //       horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //     } else if (i == size) {
-    //       horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     } else {
-    //       horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //     }
-
-    //     spriteV.texture.frame = vertivalTile;
-    //     spriteH.texture.frame = horizontalTile;
-    //   }, 300);
-
-    //   setTimeout(() => {
-    //     phase++;
-
-    //     if (i == 0) {
-    //       vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //       horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //     } else if (i == size * 2) {
-    //       horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //     } else if (i == size) {
-    //       horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     } else {
-    //       horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //     }
-
-    //     spriteV.texture.frame = vertivalTile;
-    //     spriteH.texture.frame = horizontalTile;
-    //   }, 450);
-    //   setTimeout(() => {
-    //     phase++;
-
-    //     if (i == 0) {
-    //       vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //       horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //     } else if (i == size * 2) {
-    //       horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //     } else if (i == size) {
-    //       horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     } else {
-    //       horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //     }
-
-    //     spriteV.texture.frame = vertivalTile;
-    //     spriteH.texture.frame = horizontalTile;
-    //   }, 600);
-    //   setTimeout(() => {
-    //     phase++;
-
-    //     if (i == 0) {
-    //       vertivalTile = new PIXI.Rectangle(0 + phase * 17, 0, 16, 16);
-    //       horizontalTile = new PIXI.Rectangle(12 * 16 + 12 + phase * 17, 0, 16, 16);
-    //     } else if (i == size * 2) {
-    //       horizontalTile = new PIXI.Rectangle(4 * 16 + 4 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(8 * 16 + 8 + phase * 17, 0, 16, 16);
-    //     } else if (i == size) {
-    //       horizontalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(24 * 16 + 24 + phase * 17, 0, 16, 16);
-    //     } else {
-    //       horizontalTile = new PIXI.Rectangle(20 * 16 + 20 + phase * 17, 0, 16, 16);
-    //       vertivalTile = new PIXI.Rectangle(16 * 16 + 16 + phase * 17, 0, 16, 16);
-    //     }
-
-    //     spriteV.texture.frame = vertivalTile;
-    //     spriteH.texture.frame = horizontalTile;
-    //   }, 750);
-    // }
 }
 
 function bombHandler(bomb) {
