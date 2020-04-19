@@ -8,6 +8,7 @@ const extraPass = __dirname.indexOf("distServer") === -1 ? "../" : "";
 const server = express();
 server.use(express.json());
 
+
 server.use(function (req, res, next) {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Methods", "POST, GET, OPTIONS, DELETE")
@@ -22,14 +23,16 @@ server.get("/", (req: express.Request, res: express.Response) => {
     return res.sendFile(path.join(__dirname, `${extraPass}../dist`, 'index.html'));
 })
 
+const httpServer = server.listen(process.env.PORT || 3333, () => {
+    console.log("run on port " + process.env.PORT)
+})
+const io = socketServer(httpServer);
+
 server.get("/reset", (req, res) => {
+    io.emit("reset");
     userCollection = {};
     labirint();
     res.redirect('/');
-})
-
-const httpServer = server.listen(process.env.PORT || 3333, () => {
-    console.log("run on port " + process.env.PORT)
 })
 
 interface IUserCollection {
@@ -87,7 +90,7 @@ function labirint(width = 17, height = 17, cell = 40) {
 }
 
 labirint();
-const io = socketServer(httpServer);
+
 
 
 setInterval(() => {
@@ -156,6 +159,10 @@ io.on("connection", (socket) => {
             player: userCollection[socket.id].name,
             move: data
         })
+    })
+
+    socket.on("player killed", ({ name, id }) => {
+        io.emit("player killed", { name, id });
     })
 
     socket.on("playerHitBonus", (data) => {
