@@ -344,25 +344,6 @@ function animateExplosion(explodeHorizontal,explodeVertical, {centerX,centerY}, 
     }
 
     for (let i=0; i < sizeV; i++) {
-      // let currentTileY = explodeVerticalY + 40 * i;
-      // let currentTileImage;
-      // let currentSprite;
-      // let phase = 2;
-      // let phaseShift = 17;
-      // if (currentTileY === centerY - size * 40) {
-      //   currentTileImage = rect(topTile + phase * phaseShift);
-      // } else if (currentTileY === centerY + size * 40){
-      //   currentTileImage = rect(downTile + phase * phaseShift);
-      // } else if (currentTileY === centerY) {
-      //   currentTileImage = rect(centerTile + phase * phaseShift);
-      // } else {
-      //   currentTileImage = rect(verticalTile + phase * phaseShift);
-      // }
-      // currentSprite = new Sprite(new PIXI.Texture(T, currentTileImage));
-      // currentSprite.height = currentSprite.width = 40;
-      // currentSprite.y = 40 * i;
-      // explodeVertical.addChild(currentSprite);
-      // explodeVertical.scale.set(1);
       
       let currentTileY = explodeVerticalY + 40 * i;
       let currentTileImage;
@@ -385,8 +366,8 @@ function animateExplosion(explodeHorizontal,explodeVertical, {centerX,centerY}, 
       currentSprite = new Sprite(new PIXI.Texture(T, currentTileImage));
       currentSprite.height = currentSprite.width = 40;
       currentSprite.y = 40 * i;
-      explodeHorizontal.addChild(currentSprite);
-      explodeHorizontal.scale.set(1);
+      explodeVertical.addChild(currentSprite);
+      explodeVertical.scale.set(1);
       
       setTimeout(() => {
         phase--;
