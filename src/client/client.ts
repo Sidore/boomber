@@ -11,7 +11,8 @@ let currentUser,
     mapBlocks;
 let players: any = {},
     state = null, 
-    blocks = [];
+    blocks = [],
+    multiplayer = true;
 
 let debugCollision: any = {};
 const dev = location && location.hostname == "localhost" || false;
@@ -143,10 +144,12 @@ function setupView() {
     x: 230,
     y: 410,
   }, (e) => {
-    socket.emit("start");
+    
       welcomeScreen.visible = false;
       gameScreen.visible = true;
       gameOverScreen.visible = false;
+      multiplayer = false;
+      socket.emit("start", { multiplayer });
   })
 
   const multyPlayer = createButton({
@@ -156,10 +159,11 @@ function setupView() {
     x: 230,
     y: 450,
   }, (e) => {
-    socket.emit("start");
       welcomeScreen.visible = false;
       gameScreen.visible = true;
       gameOverScreen.visible = false;
+      multiplayer = true;
+      socket.emit("start", { multiplayer });
   })
 
 
@@ -194,8 +198,8 @@ function playerImage(type?): PIXI.Sprite {
 
 function setBomb({ id, x, y, level, player }) {
 
-  console.log({ id, x, y, level, player })
-  console.log(globalPlayers)
+  // console.log({ id, x, y, level, player })
+  // console.log(globalPlayers)
   let bomb = new PIXI.Container() as any;
   
   let T = resources["bomb"].texture.baseTexture;
@@ -1130,7 +1134,7 @@ function setup() {
   players[currentUser] = playerObj;
   playersLayout.addChild(playerObj);
 
-  console.log(players)
+  // console.log(players)
 
   socket.on("new player", (data) => {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })

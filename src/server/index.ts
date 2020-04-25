@@ -2,6 +2,7 @@ import * as express from "express";
 import * as path from "path";
 import * as socketServer from "socket.io";
 import IUser from "./IUser";
+import e = require("express");
 
 const extraPass = __dirname.indexOf("distServer") === -1 ? "../" : "";
 
@@ -30,8 +31,8 @@ const httpServer = server.listen(PORT, () => {
 const io = socketServer(httpServer);
 
 server.get("/reset", (req, res) => {
-    io.emit("reset");
-    userCollection = {};
+    io.to("1").emit("reset");
+    // userCollection = {};
     labirint();
     res.redirect('/');
 })
@@ -40,11 +41,22 @@ interface IUserCollection {
     [key: string]: IUser;
 }
 
-let userCollection: IUserCollection = {};
-let lab = [];
-let bonusCount = 0;
+interface IGameSession {
+    id: string;
+    type: string;//"Multy" | "Single";
+    userCollection: IUserCollection;
+    labitint: Array<Array<number>>;
+    bonusCount: number;
+}
+
+const sessionCollection: IGameSession[] = [];  
+
+// let userCollection: IUserCollection = {};
+// let lab = [];
+// let bonusCount = 0;
 
 function labirint(width = 17, height = 17, cell = 40) {
+    let lab = [];
     let border = [];
     for (let i = 0; i < height; i++) {
         let row = [];
@@ -88,55 +100,119 @@ function labirint(width = 17, height = 17, cell = 40) {
         }
     }
 
+    return lab;
+
 }
 
-labirint();
+// labirint();
 
-setInterval(() => {
-    if (bonusCount > 5) return;
-    let id = Math.round(Math.random() * 10000);
-    let type = Math.round(Math.random() * 17) % 3 + 1;
-    let x,y;
-
-    while (!x && !y) {
-        let tempX = Math.round(Math.random() * 16)
-        let tempY = Math.round(Math.random() * 16)
-
-        if (lab[tempY][tempX] === 0) {
-            x = tempX * 40;
-            y = tempY * 40;
-            lab[tempY][tempX] = 3 + type;
-        }
+function initMultyplayer() {
+    let session = {
+        id: "1",
+        type: "Multy",
+        userCollection: {},
+        labitint: labirint(),
+        bonusCount: 0
     }
 
-    console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
-    bonusCount++;
-    io.emit("bonus appear", {
-        type,
-        x,
-        y,
-        id
-    })
-}, 25000)
+    setInterval(() => {
+        if (session.bonusCount > 10) return;
+        let id = Math.round(Math.random() * 10000);
+        let type = Math.round(Math.random() * 17) % 3 + 1;
+        let x,y;
+    
+        while (!x && !y) {
+            let tempX = Math.round(Math.random() * 16)
+            let tempY = Math.round(Math.random() * 16)
+    
+            if (session.labitint[tempY][tempX] === 0) {
+                x = tempX * 40;
+                y = tempY * 40;
+                session.labitint[tempY][tempX] = 3 + type;
+            }
+        }
+    
+        console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
+        session.bonusCount++;
+        io.to(session.id).emit(`room ${session.id}`,"bonus appear", {
+            type,
+            x,
+            y,
+            id
+        })
+    }, 25000)
 
-// setInterval(() => {
-//     io.emit("lab sync", {map: lab})
-// }, 2000)
+    sessionCollection.push(session);
+    return session;
+}
+
+function initSigleplayer(id) {
+    let session = {
+        id,
+        type: "Single",
+        userCollection: {},
+        labitint: labirint(),
+        bonusCount: 0
+    }
+
+    setInterval(() => {
+        if (session.bonusCount > 5) return;
+        let id = Math.round(Math.random() * 10000);
+        let type = Math.round(Math.random() * 17) % 3 + 1;
+        let x,y;
+    
+        while (!x && !y) {
+            let tempX = Math.round(Math.random() * 16)
+            let tempY = Math.round(Math.random() * 16)
+    
+            if (session.labitint[tempY][tempX] === 0) {
+                x = tempX * 40;
+                y = tempY * 40;
+                session.labitint[tempY][tempX] = 3 + type;
+            }
+        }
+    
+        console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
+        session.bonusCount++;
+        io.to(session.id).emit(`room ${session.id}`,"bonus appear", {
+            type,
+            x,
+            y,
+            id
+        })
+    }, 20000)
+    
+    sessionCollection.push(session);
+    return session;
+}
 
 io.on("connection", (socket) => {
 
-    socket.on("start", () => {
+    
+    socket.on("start", ({ multiplayer }) => {
 
-        socket.emit("welcome", { players: userCollection, map: lab });
-        for (let a in userCollection) {
+        console.log(multiplayer)
+        let session: IGameSession
+
+        if (multiplayer) {
+             session = sessionCollection.find(ses => ses.type === "Multy") || initMultyplayer()
+        } else {
+            session = sessionCollection.find(ses => ses.id === socket.id) || initSigleplayer(socket.id);
+        }
+
+        socket.join(session.id);
+        
+
+        socket.emit("welcome", { players: session.userCollection, map: session.labitint });
+        for (let a in session.userCollection) {
             // console.log(a, userCollection[a])
-            if (userCollection[a].name) {
-                console.log(userCollection[a].name, "should be displayed to", socket.id)
+            if (session.userCollection[a].name) {
+                console.log(session.userCollection[a].name, "should be displayed to", socket.id)
                 // socket.emit("new player", userCollection[a].name);
             }
         }
 
-        userCollection[socket.id] = {
+        session.userCollection[socket.id] = {
             name: "",
             nick: "",
             skills: [],
@@ -146,32 +222,32 @@ io.on("connection", (socket) => {
 
         socket.on("set data", (data) => {
             if (data && data.name) {
-                userCollection[socket.id].name = data.name;
-                io.emit("new player", userCollection[socket.id].name)
+                session.userCollection[socket.id].name = data.name;
+                io.to(session.id).emit("new player", session.userCollection[socket.id].name)
             } else {
-                delete userCollection[socket.id];
+                delete session.userCollection[socket.id];
             }
 
             console.log(data);
         })
 
         socket.on("direction", (data) => {
-            userCollection[socket.id] && io.emit("move block", {
-                player: userCollection[socket.id].name,
+            session.userCollection[socket.id] && io.to(session.id).emit("move block", {
+                player: session.userCollection[socket.id].name,
                 move: data
             })
         })
 
         socket.on("player killed", ({ name, id }) => {
 
-            for(let user in userCollection) {
-                if (userCollection[user].name === name) {
-                    delete userCollection[user];
+            for(let user in session.userCollection) {
+                if (session.userCollection[user].name === name) {
+                    delete session.userCollection[user];
                     break;
                 }
             }
 
-            io.emit("player killed", { name, id });
+            io.to(session.id).emit("player killed", { name, id });
         })
 
         socket.on("playerHitBonus", (data) => {
@@ -181,21 +257,21 @@ io.on("connection", (socket) => {
 
             console.log("bonus removed at", xBlock, yBlock);
 
-            lab[yBlock][xBlock] = 0;
-            bonusCount--;
-            io.emit("player hit bonus", data)
+            session.labitint[yBlock][xBlock] = 0;
+            session.bonusCount--;
+            io.to(session.id).emit("player hit bonus", data)
         })
 
         socket.on("sync positon", ({ x, y }) => {
-            userCollection[socket.id] && io.emit("sync positon", {
-                player: userCollection[socket.id].name,
+            session.userCollection[socket.id] && io.to(session.id).emit("sync positon", {
+                player: session.userCollection[socket.id].name,
                 x, y
             })
         })
 
         socket.on("required sync", () => {
-            console.log( userCollection[socket.id] && userCollection[socket.id].name, "required positon sync")
-            io.emit("required sync")
+            console.log( session.userCollection[socket.id] && session.userCollection[socket.id].name, "required positon sync")
+            io.to(session.id).emit("required sync")
         })
 
         socket.on('block explode', ({ x, y }) => {
@@ -204,14 +280,14 @@ io.on("connection", (socket) => {
 
             console.log("block removed at", xBlock, yBlock);
 
-            lab[yBlock][xBlock] = 0;
+            session.labitint[yBlock][xBlock] = 0;
         })
 
         socket.on("bomb", (data) => {
 
             if (data.action) {
                 if (data.action === "explode") {
-                    io.emit("bomb", {
+                    io.to(session.id).emit("bomb", {
                         id: data.id,
                         state: "explode",
                         level: data.level
@@ -221,7 +297,7 @@ io.on("connection", (socket) => {
                 let id = Math.round(Math.random() * 10000);
                 console.log("bomb", data);
 
-                io.emit("bomb", {
+                io.to(session.id).emit("bomb", {
                     id,
                     state: "set",
                     level: data.level,
@@ -232,7 +308,7 @@ io.on("connection", (socket) => {
 
                 if (!data.action) {
                     setTimeout(() => {
-                        io.emit("bomb", {
+                        io.to(session.id).emit("bomb", {
                             id,
                             state: "explode",
                             level: data.level
@@ -244,9 +320,9 @@ io.on("connection", (socket) => {
         });
 
         socket.on('disconnect', (data) => {
-            console.log('user disconnected', data, socket.id, userCollection);
-            if (userCollection[socket.id])
-                io.emit("remove user", userCollection[socket.id] && userCollection[socket.id].name || null)
+            console.log('user disconnected', data, socket.id, session.userCollection);
+            if (session.userCollection[socket.id])
+                io.to(session.id).emit("remove user", session.userCollection[socket.id] && session.userCollection[socket.id].name || null)
         });
 
     });
