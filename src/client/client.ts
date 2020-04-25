@@ -25,6 +25,9 @@ const application = new PIXI.Application({
   resolution: 1,
   backgroundColor: 0x008b00
 });
+
+document.body.appendChild(application.view);
+
 const { loader, stage } = application;
 const { resources } = loader;
 const { Sprite } = PIXI;
@@ -33,11 +36,126 @@ const bombsLayot = new PIXI.Container();
 const mapLayout = new PIXI.Container();
 const playersLayout = new PIXI.Container();
 const bonusLayout = new PIXI.Container();
-stage.addChild(backLayot);
-stage.addChild(bombsLayot);
-stage.addChild(mapLayout);
-stage.addChild(bonusLayout);
-stage.addChild(playersLayout);
+
+const gameScreen = new PIXI.Container();
+const welcomeScreen = new PIXI.Container();
+const gameOverScreen = new PIXI.Container();
+
+stage.addChild(welcomeScreen);
+stage.addChild(gameScreen);
+stage.addChild(gameOverScreen);
+
+try{
+  loader
+  .add("tileset", `${serverUrl}/public/bomberman.png`)
+  .add("bomb", `${serverUrl}/public/bomb.png`)
+  .add("bomblevel", `${serverUrl}/public/bomblevel.png`)
+  .add("bombcount", `${serverUrl}/public/bombcount.png`)
+  .add("speed", `${serverUrl}/public/speed.png`)
+  .add("grass", `${serverUrl}/public/grass.png`)
+  .add("grassshadow", `${serverUrl}/public/grassshadow.png`)
+  .add("block1", `${serverUrl}/public/block1.png`)
+  .add("block2", `${serverUrl}/public/block2.png`)
+  .add("block3", `${serverUrl}/public/block3.png`)
+  .add("blockdestroy", `${serverUrl}/public/blockdestroy.png`)
+  .add("down", `${serverUrl}/public/down.png`)
+  .add("left", `${serverUrl}/public/left.png`)
+  .add("right", `${serverUrl}/public/right.png`)
+  .add("topleft", `${serverUrl}/public/topleft.png`)
+  .add("topright", `${serverUrl}/public/topright.png`)
+  .add("monsters", `${serverUrl}/public/12.gif`)
+  .add("expload", `${serverUrl}/public/exploade.png`)
+  .add("startsceen", `${serverUrl}/public/startscreen.png`)
+  .on("progress", loadProgressHandler)
+  .load(setupView);
+} catch(e){
+  console.log("reload images")
+}
+
+function createButton({text, x, y, height, width, color = 0xcccccc}, callback): PIXI.Container {
+  const welcomeButton: any = new PIXI.Container();
+  const border = new PIXI.Graphics();
+  border.lineStyle(1, color, 1);
+  // border.beginFill(0xff0000);
+  border.drawRect(1, 1, width, height);
+  border.endFill();
+  
+  const style = new PIXI.TextStyle({
+    fill: "white",
+    fontFamily: "\"Courier New\", Courier, monospace",
+    fontSize: 36,
+    fontVariant: "small-caps",
+    fontWeight: "bold",
+    lineJoin: "round",
+    strokeThickness: 3
+});
+
+  const buttonText = new PIXI.Text(text, style);
+  buttonText.x = 0;
+  buttonText.y = 0;
+  
+  // welcomeButton.addChild(border);
+  welcomeButton.addChild(buttonText);
+  
+  welcomeButton.width = width;
+  welcomeButton.height = height;
+  welcomeButton.buttonMode = true;
+  welcomeButton.interactive = true;
+  welcomeButton.hitArea = new PIXI.Rectangle(0, 0, width, height);
+  welcomeButton.x = x;
+  welcomeButton.y = y;
+  welcomeButton.click = callback;
+
+  return welcomeButton;
+}
+
+function setupView() {
+  gameScreen.visible = false;
+  gameOverScreen.visible = false;
+
+  gameScreen.addChild(backLayot);
+  gameScreen.addChild(bombsLayot);
+  gameScreen.addChild(mapLayout);
+  gameScreen.addChild(bonusLayout);
+  gameScreen.addChild(playersLayout);
+
+
+  let T = resources["startsceen"].texture.baseTexture;
+  let welcomeBackground = new Sprite(new PIXI.Texture(T));
+  welcomeBackground.width = welcomeBackground.height = 680;
+  welcomeBackground.x = welcomeBackground.y = 0;
+
+  const singlePlayer = createButton({
+    text: "Singleplayer",
+    width: 220,
+    height: 36,
+    x: 230,
+    y: 410,
+  }, (e) => {
+    socket.emit("start");
+      welcomeScreen.visible = false;
+      gameScreen.visible = true;
+      gameOverScreen.visible = false;
+  })
+
+  const multyPlayer = createButton({
+    text: "Multiplayer",
+    width: 220,
+    height: 36,
+    x: 230,
+    y: 450,
+  }, (e) => {
+    socket.emit("start");
+      welcomeScreen.visible = false;
+      gameScreen.visible = true;
+      gameOverScreen.visible = false;
+  })
+
+
+  welcomeScreen.addChild(welcomeBackground)
+  welcomeScreen.addChild(singlePlayer);
+  welcomeScreen.addChild(multyPlayer);
+}
 
 socket.on('movement', function (msg) {
   console.log(msg)
@@ -56,6 +174,7 @@ function playerImage(type?): PIXI.Sprite {
   if (type === undefined) {
     type = Math.round(Math.random() * 7);
   }
+  console.log(resources);
   let T = resources["tileset"].texture.baseTexture;
   let rectangle = new PIXI.Rectangle(type * 24, 0 * 24, 24, 24);
   let sprite = new Sprite(new PIXI.Texture(T, rectangle));
@@ -401,7 +520,7 @@ function animateExplosion(explodeHorizontal,explodeVertical, {centerX,centerY}, 
     }
 }
 
-function bombHandler(bomb) {
+function bombHandler(bomb) { 
   switch (bomb.state) {
     case "set": setBomb(bomb); break;
     case "explode": explodeBomb(bomb); break;
@@ -475,8 +594,6 @@ function removeUserHandler(player) {
   delete players[player];
 }
 
-document.body.appendChild(application.view);
-
 function loadProgressHandler(loader, resource) {
   console.log("loading: " + resource.url);
   console.log("progress: " + loader.progress + "%");
@@ -486,7 +603,7 @@ function loadProgressHandler(loader, resource) {
 function hitTestRectangle(r1, r2) {
 
   if (debugCollision.type === 1 && (r1 === debugCollision || r2 === debugCollision)) {
-    debugger;
+    // debugger;
   }
   //Define the variables we'll need to calculate
   let hit, combinedHalfWidths, combinedHalfHeights, vx, vy;
@@ -940,7 +1057,7 @@ function labirint(cell = 40) {
 }
 
 function bonusAppearHandler({id, type ,x ,y }) {
-  console.log('bonusAppearHandler',x,y);
+  // console.log('bonusAppearHandler',x,y);
   let bonus = new PIXI.Container() as any;
   let tileTitle = "bomblevel";
 
@@ -1036,6 +1153,7 @@ function setup() {
 
   space.press = enter.press = () => {
 
+    if (!players[currentUser]) return;
     let count = 0;
 
     for (let bombId in bombs) {
@@ -1056,7 +1174,7 @@ function setup() {
         player: playerObj.name
       })
     } else {
-      console.log("too many boombs", count, playerObj.bombCount)
+      // console.log("too many boombs", count, playerObj.bombCount)
     }
   }
 
@@ -1162,7 +1280,7 @@ function play(delta) {
 
     explosions.forEach(exp => {
       if (players[p] && hitTestRectangle(players[p],exp)) {
-        debugger;
+        // debugger;
         killPlayer(players[p],p);
       }
     })
@@ -1184,6 +1302,7 @@ function killPlayer(player,id) {
 socket.on("player killed", ({name, id, typePlayer}) => {
   console.log(`player "${name}" killed consume`);
   const player = players[id];
+  if (!player) return;
   let rectangle = new PIXI.Rectangle(player.typePlayer * 24, 12 * 24, 24, 24);
   player.children[0].texture.frame = rectangle;
   delete players[id];
@@ -1233,29 +1352,9 @@ socket.on("welcome", ({ players, map }) => {
   });
 
   socket.emit("required sync");
-  try{
-    loader
-    .add("tileset", `${serverUrl}/public/bomberman.png`)
-    .add("bomb", `${serverUrl}/public/bomb.png`)
-    .add("bomblevel", `${serverUrl}/public/bomblevel.png`)
-    .add("bombcount", `${serverUrl}/public/bombcount.png`)
-    .add("speed", `${serverUrl}/public/speed.png`)
-    .add("grass", `${serverUrl}/public/grass.png`)
-    .add("grassshadow", `${serverUrl}/public/grassshadow.png`)
-    .add("block1", `${serverUrl}/public/block1.png`)
-    .add("block2", `${serverUrl}/public/block2.png`)
-    .add("block3", `${serverUrl}/public/block3.png`)
-    .add("blockdestroy", `${serverUrl}/public/blockdestroy.png`)
-    .add("down", `${serverUrl}/public/down.png`)
-    .add("left", `${serverUrl}/public/left.png`)
-    .add("right", `${serverUrl}/public/right.png`)
-    .add("topleft", `${serverUrl}/public/topleft.png`)
-    .add("topright", `${serverUrl}/public/topright.png`)
-    .add("monsters", `${serverUrl}/public/12.gif`)
-    .add("expload", `${serverUrl}/public/exploade.png`)
-    .on("progress", loadProgressHandler)
-    .load(setup);
-  } catch(e){}
+  setTimeout(() => {
+    setup();
+  }, 0);
   
 })
 

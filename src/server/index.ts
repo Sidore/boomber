@@ -91,8 +91,6 @@ function labirint(width = 17, height = 17, cell = 40) {
 
 labirint();
 
-
-
 setInterval(() => {
     if (bonusCount > 5) return;
     let id = Math.round(Math.random() * 10000);
@@ -126,117 +124,129 @@ setInterval(() => {
 
 io.on("connection", (socket) => {
 
-    socket.emit("welcome", { players: userCollection, map: lab });
-    for (let a in userCollection) {
-        // console.log(a, userCollection[a])
-        if (userCollection[a].name) {
-            console.log(userCollection[a].name, "should be displayed to", socket.id)
-            // socket.emit("new player", userCollection[a].name);
-        }
-    }
+    socket.on("start", () => {
 
-    userCollection[socket.id] = {
-        name: "",
-        nick: "",
-        skills: [],
-        exp: 0
-    }
-    console.log('a new user connected', socket.id);
-
-    socket.on("set data", (data) => {
-        if (data && data.name) {
-            userCollection[socket.id].name = data.name;
-            io.emit("new player", userCollection[socket.id].name)
-        } else {
-            delete userCollection[socket.id];
-        }
-
-        console.log(data);
-    })
-
-    socket.on("direction", (data) => {
-        userCollection[socket.id] && io.emit("move block", {
-            player: userCollection[socket.id].name,
-            move: data
-        })
-    })
-
-    socket.on("player killed", ({ name, id }) => {
-        io.emit("player killed", { name, id });
-    })
-
-    socket.on("playerHitBonus", (data) => {
-        // console.log("playerHitBonus", data)
-        let xBlock = (data.x - data.x % 40) / 40
-        let yBlock = (data.y - data.y % 40) / 40
-
-        console.log("bonus removed at", xBlock, yBlock);
-
-        lab[yBlock][xBlock] = 0;
-        bonusCount--;
-        io.emit("player hit bonus", data)
-    })
-
-    socket.on("sync positon", ({ x, y }) => {
-        userCollection[socket.id] && io.emit("sync positon", {
-            player: userCollection[socket.id].name,
-            x, y
-        })
-    })
-
-    socket.on("required sync", () => {
-        console.log( userCollection[socket.id] && userCollection[socket.id].name, "required positon sync")
-        io.emit("required sync")
-    })
-
-    socket.on('block explode', ({ x, y }) => {
-        let xBlock = (x - x % 40) / 40
-        let yBlock = (y - y % 40) / 40
-
-        console.log("block removed at", xBlock, yBlock);
-
-        lab[yBlock][xBlock] = 0;
-    })
-
-    socket.on("bomb", (data) => {
-
-        if (data.action) {
-            if (data.action === "explode") {
-                io.emit("bomb", {
-                    id: data.id,
-                    state: "explode",
-                    level: data.level
-                });
+        socket.emit("welcome", { players: userCollection, map: lab });
+        for (let a in userCollection) {
+            // console.log(a, userCollection[a])
+            if (userCollection[a].name) {
+                console.log(userCollection[a].name, "should be displayed to", socket.id)
+                // socket.emit("new player", userCollection[a].name);
             }
-        } else {
-            let id = Math.round(Math.random() * 10000);
-            console.log("bomb", data);
+        }
 
-            io.emit("bomb", {
-                id,
-                state: "set",
-                level: data.level,
-                x: data.x,
-                y: data.y,
-                player: data.player
-            });
+        userCollection[socket.id] = {
+            name: "",
+            nick: "",
+            skills: [],
+            exp: 0
+        }
+        console.log('a new user connected', socket.id);
 
-            if (!data.action) {
-                setTimeout(() => {
+        socket.on("set data", (data) => {
+            if (data && data.name) {
+                userCollection[socket.id].name = data.name;
+                io.emit("new player", userCollection[socket.id].name)
+            } else {
+                delete userCollection[socket.id];
+            }
+
+            console.log(data);
+        })
+
+        socket.on("direction", (data) => {
+            userCollection[socket.id] && io.emit("move block", {
+                player: userCollection[socket.id].name,
+                move: data
+            })
+        })
+
+        socket.on("player killed", ({ name, id }) => {
+
+            for(let user in userCollection) {
+                if (userCollection[user].name === name) {
+                    delete userCollection[user];
+                    break;
+                }
+            }
+
+            io.emit("player killed", { name, id });
+        })
+
+        socket.on("playerHitBonus", (data) => {
+            // console.log("playerHitBonus", data)
+            let xBlock = (data.x - data.x % 40) / 40
+            let yBlock = (data.y - data.y % 40) / 40
+
+            console.log("bonus removed at", xBlock, yBlock);
+
+            lab[yBlock][xBlock] = 0;
+            bonusCount--;
+            io.emit("player hit bonus", data)
+        })
+
+        socket.on("sync positon", ({ x, y }) => {
+            userCollection[socket.id] && io.emit("sync positon", {
+                player: userCollection[socket.id].name,
+                x, y
+            })
+        })
+
+        socket.on("required sync", () => {
+            console.log( userCollection[socket.id] && userCollection[socket.id].name, "required positon sync")
+            io.emit("required sync")
+        })
+
+        socket.on('block explode', ({ x, y }) => {
+            let xBlock = (x - x % 40) / 40
+            let yBlock = (y - y % 40) / 40
+
+            console.log("block removed at", xBlock, yBlock);
+
+            lab[yBlock][xBlock] = 0;
+        })
+
+        socket.on("bomb", (data) => {
+
+            if (data.action) {
+                if (data.action === "explode") {
                     io.emit("bomb", {
-                        id,
+                        id: data.id,
                         state: "explode",
                         level: data.level
                     });
-                }, 2000)
-            }
-        }
-        
-    });
+                }
+            } else {
+                let id = Math.round(Math.random() * 10000);
+                console.log("bomb", data);
 
-    socket.on('disconnect', (data) => {
-        console.log('user disconnected', data, socket.id, userCollection);
-        if (userCollection[socket.id])
-            io.emit("remove user", userCollection[socket.id] && userCollection[socket.id].name || null)
+                io.emit("bomb", {
+                    id,
+                    state: "set",
+                    level: data.level,
+                    x: data.x,
+                    y: data.y,
+                    player: data.player
+                });
+
+                if (!data.action) {
+                    setTimeout(() => {
+                        io.emit("bomb", {
+                            id,
+                            state: "explode",
+                            level: data.level
+                        });
+                    }, 2000)
+                }
+            }
+            
+        });
+
+        socket.on('disconnect', (data) => {
+            console.log('user disconnected', data, socket.id, userCollection);
+            if (userCollection[socket.id])
+                io.emit("remove user", userCollection[socket.id] && userCollection[socket.id].name || null)
+        });
+
     });
 })
