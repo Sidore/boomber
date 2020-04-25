@@ -1154,10 +1154,12 @@ function setup() {
     location.reload();
   })
 
-  //
-  // setInterval(() => {
-  //   socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-  // }, 500)
+  if (multiplayer) {
+    setInterval(() => {
+      socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
+    }, 300)
+  }
+  
 
   socket.on("move block", moveBlockHandler);
   socket.on("remove user", removeUserHandler);

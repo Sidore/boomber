@@ -140,7 +140,7 @@ function initMultyplayer() {
             y,
             id
         })
-    }, 25000)
+    }, 15000)
 
     sessionCollection.push(session);
     return session;
