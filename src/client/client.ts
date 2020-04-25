@@ -110,6 +110,17 @@ function createButton({text, x, y, height, width, color = 0xcccccc}, callback): 
 }
 
 function setupView() {
+
+   currentUser = null; 
+    globalPlayers = []; 
+    bombs = {};
+    bonuses = [];
+    explosions = []; 
+    mapBlocks = [];
+    players = {};
+    state = null; 
+    blocks = [];
+
   gameScreen.visible = false;
   gameOverScreen.visible = false;
 
@@ -174,7 +185,6 @@ function playerImage(type?): PIXI.Sprite {
   if (type === undefined) {
     type = Math.round(Math.random() * 7);
   }
-  console.log(resources);
   let T = resources["tileset"].texture.baseTexture;
   let rectangle = new PIXI.Rectangle(type * 24, 0 * 24, 24, 24);
   let sprite = new Sprite(new PIXI.Texture(T, rectangle));
@@ -183,6 +193,9 @@ function playerImage(type?): PIXI.Sprite {
 }
 
 function setBomb({ id, x, y, level, player }) {
+
+  console.log({ id, x, y, level, player })
+  console.log(globalPlayers)
   let bomb = new PIXI.Container() as any;
   
   let T = resources["bomb"].texture.baseTexture;
@@ -562,7 +575,11 @@ function createPlayer(title: string) {
 }
 
 function newPlayerHandler(player) {
-  console.log("new player added", player);
+  console.log("new player added", player, players);
+  if (players[player]) {
+    console.warn(`player ${player} already presented`)
+    return;
+  }
   const playerObj = createPlayer(player);
   players[player] = playerObj;
   playersLayout.addChild(playerObj);
@@ -1112,6 +1129,8 @@ function setup() {
 
   players[currentUser] = playerObj;
   playersLayout.addChild(playerObj);
+
+  console.log(players)
 
   socket.on("new player", (data) => {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })

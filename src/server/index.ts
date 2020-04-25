@@ -23,8 +23,9 @@ server.get("/", (req: express.Request, res: express.Response) => {
     return res.sendFile(path.join(__dirname, `${extraPass}../dist`, 'index.html'));
 })
 
-const httpServer = server.listen(process.env.PORT || 3333, () => {
-    console.log("run on port " + process.env.PORT)
+const PORT = process.env.PORT || 3333
+const httpServer = server.listen(PORT, () => {
+    console.log("run on port " + PORT)
 })
 const io = socketServer(httpServer);
 
