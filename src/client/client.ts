@@ -1,6 +1,7 @@
 import * as PIXI from 'pixi.js';
 import io from 'socket.io-client';
 import board from "./keyboard";
+import e = require('express');
 
 const root = document.getElementById("application");
 let currentUser, 
@@ -10,6 +11,7 @@ let currentUser,
     explosions = [], 
     mapBlocks;
 let players: any = {},
+    monsters = [],
     state = null, 
     blocks = [],
     multiplayer = true;
@@ -36,6 +38,7 @@ const backLayot = new PIXI.Container();
 const bombsLayot = new PIXI.Container();
 const mapLayout = new PIXI.Container();
 const playersLayout = new PIXI.Container();
+const monstersLayout = new PIXI.Container();
 const bonusLayout = new PIXI.Container();
 
 const gameScreen = new PIXI.Container();
@@ -130,7 +133,7 @@ function setupView() {
   gameScreen.addChild(mapLayout);
   gameScreen.addChild(bonusLayout);
   gameScreen.addChild(playersLayout);
-
+  gameScreen.addChild(monstersLayout);
 
   let T = resources["startsceen"].texture.baseTexture;
   let welcomeBackground = new Sprite(new PIXI.Texture(T));
@@ -297,6 +300,13 @@ function explodeBomb({ id, level }, time = 900) {
         socket.emit("block explode", { x: bl.x, y: bl.y });
       }
     });
+
+    monsters.forEach((m) => {
+      if ((hitTestRectangle(m, explodeHorizontal) || hitTestRectangle(m, explodeVertical))) {
+        monsters.splice(monsters.findIndex((i) => i === m),1);
+        monstersLayout.removeChild(m);
+      }
+    })
 
 
   for (let id in bombs) {
@@ -1115,8 +1125,69 @@ function bonusAppearHandler({id, type ,x ,y }) {
   bonusLayout.addChild(bonus);
 }
 
-function setup() {
+function createAI(count = 6) {
+  console.log("createAI")
+  for(let i = 0 ; i < count; i++) {
+    let x,y;
+    let type = Math.round(Math.random() * 17) % 3;
 
+    while (!x && !y) {
+        let tempX = Math.round(Math.random() * 16)
+        let tempY = Math.round(Math.random() * 16)
+
+        if (mapBlocks[tempY][tempX] === 0) {
+            x = tempX * 40;
+            y = tempY * 40;
+            mapBlocks[tempY][tempX] = 99;
+        }
+    }
+    const monster = createMonster(x,y,type);
+    monsters.push(monster);
+    monstersLayout.addChild(monster);
+  }
+
+}
+
+function createMonster(x,y,type) {
+  let monster = new PIXI.Container() as any;
+  
+  let T = resources["monsters"].texture.baseTexture;
+  let stage1 = new PIXI.Rectangle(8 * 16 + 8, 0, 16, 16);
+
+  let sprite = new Sprite(new PIXI.Texture(T, stage1));
+  sprite.height = sprite.width = 40;
+
+  monster.x = x;
+  monster.y = y;
+  monster.vx = 0;
+  monster.vy = 0;
+  monster.loop = 0;
+
+  if (Math.random() > 0.5) {
+    monster.vx = Math.random() > 0.5 ? 1 : -1;
+    monster.move = "vx";
+  } else {
+    monster.vy = Math.random() > 0.5 ? 1 : -1;
+    monster.move = "vy";
+  }
+
+  monster.addChild(sprite);
+  console.log(monster);
+  return monster;
+
+}
+
+function singlePlayerSetup() {
+  createAI(6);
+}
+
+function multiplayerSetup() {
+  setInterval(() => {
+    socket.emit('sync positon', { x: players[currentUser].x, y: players[currentUser].y })
+  }, 500);
+}
+
+function setup() {
   const grass = resources["grass"].texture.baseTexture;
   grass.width = 40;
   grass.height = 40;
@@ -1134,7 +1205,11 @@ function setup() {
   players[currentUser] = playerObj;
   playersLayout.addChild(playerObj);
 
-  // console.log(players)
+  if (multiplayer) {
+    multiplayerSetup();
+  } else {
+    singlePlayerSetup();
+  }
 
   socket.on("new player", (data) => {
     socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
@@ -1153,13 +1228,6 @@ function setup() {
   socket.on("reset", () => {
     location.reload();
   })
-
-  if (multiplayer) {
-    setInterval(() => {
-      socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-    }, 300)
-  }
-  
 
   socket.on("move block", moveBlockHandler);
   socket.on("remove user", removeUserHandler);
@@ -1271,7 +1339,104 @@ function setup() {
 }
 
 function play(delta) {
-  //Use the cat's velocity to make it move
+  
+  monsters.forEach(m => {
+    m.x += m.vx;
+    m.y += m.vy;
+
+    let hitBorders = contain(m, {
+      x: 40, y: 40, width: 640, height: 640
+    });
+
+    if (hitBorders === "top" || hitBorders === "bottom") {
+      if (m.move === "vy") {
+        if (m.loop >= 2) {  
+          m.loop = 0;
+          m.vy = 0;
+          m.move = "vx";
+          m.vx = Math.random() > 0.5 ? 1 : -1;
+        } else {
+          m.loop++;
+          m.vy *= -1;
+        }
+      }
+    }
+
+    if (hitBorders === "left" || hitBorders === "right") {
+      if (m.move === "vx") {
+        if (m.loop >= 2) {  
+          m.loop = 0;
+          m.vx = 0;
+          m.move = "vy";
+          m.vy = Math.random() > 0.5 ? 1 : -1;
+        } else {
+          m.loop++;
+          m.vx *= -1;
+        }
+      }
+    }
+
+    blocks.forEach(block => {
+      let hit = rectangleCollision(m, block)
+      if (hit === "top" || hit === "bottom") {
+        if (m.move === "vy") {
+          if (m.loop >= 2) {  
+            m.loop = 0;
+            m.vy = 0;
+            m.move = "vx";
+            m.vx = Math.random() > 0.5 ? 1 : -1;
+          } else {
+            m.loop++;
+            m.vy *= -1;
+          }
+        }
+      }
+      if (hit === "left" || hit === "right") {
+        if (m.move === "vx") {
+          if (m.loop >= 2) {  
+            m.loop = 0;
+            m.vx = 0;
+            m.move = "vy";
+            m.vy = Math.random() > 0.5 ? 1 : -1;
+          } else {
+            m.loop++;
+            m.vx *= -1;
+          }
+        }
+      }
+    })
+
+    for (let b in bombs) {
+      let hit = rectangleCollision(m, bombs[b])
+      if (hit === "top" || hit === "bottom") {
+        if (m.move === "vy") {
+          if (m.loop >= 2) {  
+            m.loop = 0;
+            m.vy = 0;
+            m.move = "vx";
+            m.vx = Math.random() > 0.5 ? 1 : -1;
+          } else {
+            m.loop++;
+            m.vy *= -1;
+          }
+        }
+      }
+      if (hit === "left" || hit === "right") {
+        if (m.move === "vx") {
+          if (m.loop >= 2) {  
+            m.loop = 0;
+            m.vx = 0;
+            m.move = "vy";
+            m.vy = Math.random() > 0.5 ? 1 : -1;
+          } else {
+            m.loop++;
+            m.vx *= -1;
+          }
+        }
+      }
+    }
+  })
+
   for (let p in players) {
     // console.log(p)rs
     players[p].x += players[p].vx;
@@ -1297,10 +1462,11 @@ function play(delta) {
       if (hit === "top" || hit === "bottom") {
         // players[p].vy = 0;
       }
-
       if (hit === "left" || hit === "right") {
         // players[p].vx = 0;
       }
+
+
     })
 
     explosions.forEach(exp => {
@@ -1313,6 +1479,12 @@ function play(delta) {
     bonuses.forEach(bonus => {
       if (players[p] && hitTestRectangle(players[p],bonus)) {
         playerHitBonus(players[p],p,bonus);
+      }
+    })
+
+    monsters.forEach(monster => {
+      if (players[p] && hitTestRectangle(players[p],monster)) {
+        killPlayer(players[p],p);
       }
     })
   }
