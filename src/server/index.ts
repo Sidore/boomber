@@ -192,6 +192,7 @@ io.on("connection", (socket) => {
 
         // console.log(multiplayer)
         let session: IGameSession
+        // let name: string;
 
         if (multiplayer) {
              session = sessionCollection.find(ses => ses.type === "Multy") || initMultyplayer()
@@ -331,7 +332,7 @@ io.on("connection", (socket) => {
             console.log('user disconnected', data, socket.id, session.userCollection);
             if (session.userCollection[socket.id])
                 io.to(session.id).emit("remove user", session.userCollection[socket.id] && session.userCollection[socket.id].name || null)
-                delete session.userCollection[socket.id];
+                // delete session.userCollection[socket.id];
         });
 
     });
