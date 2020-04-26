@@ -204,7 +204,7 @@ io.on("connection", (socket) => {
 
         socket.emit("welcome", { players: session.userCollection, map: session.labitint });
 
-        if (!multiplayer && session.userCollection[socket.id])
+        if (session.userCollection[socket.id])
             return;
         
         

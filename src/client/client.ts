@@ -139,7 +139,7 @@ function setupView() {
     width: 220,
     height: 36,
     x: 230,
-    y: 410
+    y: 350
   }, () => {
     welcomeScreen.visible = false;
       gameScreen.visible = true;
