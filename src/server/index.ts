@@ -33,7 +33,7 @@ const io = socketServer(httpServer);
 server.get("/reset", (req, res) => {
     io.to("1").emit("reset");
     // userCollection = {};
-    labirint();
+    labirint({});
     res.redirect('/');
 })
 
@@ -55,7 +55,7 @@ const sessionCollection: IGameSession[] = [];
 // let lab = [];
 // let bonusCount = 0;
 
-function labirint(width = 17, height = 17, cell = 40) {
+function labirint({width = 17, height = 17, cell = 40, blocks = 0.4}) {
     let lab = [];
     let border = [];
     for (let i = 0; i < height; i++) {
@@ -84,7 +84,7 @@ function labirint(width = 17, height = 17, cell = 40) {
     for (let i = 1; i < height - 1; i++) {
         let row = [];
         for (let j = 1; j < width - 1; j++) {
-            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < 0.4) {
+            if (!(i % 2 !== 1 && j % 2 !== 1) && Math.random() < blocks) {
                 row[j] = 1;
             }
         }
@@ -111,7 +111,7 @@ function initMultyplayer() {
         id: "1",
         type: "Multy",
         userCollection: {},
-        labitint: labirint(),
+        labitint: labirint({}),
         bonusCount: 0
     }
 
@@ -146,12 +146,12 @@ function initMultyplayer() {
     return session;
 }
 
-function initSigleplayer(id) {
+function initSigleplayer(id, socket) {
     let session = {
         id,
         type: "Single",
         userCollection: {},
-        labitint: labirint(),
+        labitint: [],
         bonusCount: 0
     }
 
@@ -172,9 +172,9 @@ function initSigleplayer(id) {
             }
         }
     
-        console.log(`bonus appear type ${type} with x: ${x}, y: ${y}`)
+        console.log(`room ${session.id} - ${session.type}, bonus appear type ${type} with x: ${x}, y: ${y}`)
         session.bonusCount++;
-        io.to(session.id).emit(`room ${session.id}`,"bonus appear", {
+        socket.emit("bonus appear", {
             type,
             x,
             y,
@@ -187,23 +187,27 @@ function initSigleplayer(id) {
 }
 
 io.on("connection", (socket) => {
-
     
     socket.on("start", ({ multiplayer }) => {
 
-        console.log(multiplayer)
+        // console.log(multiplayer)
         let session: IGameSession
 
         if (multiplayer) {
              session = sessionCollection.find(ses => ses.type === "Multy") || initMultyplayer()
         } else {
-            session = sessionCollection.find(ses => ses.id === socket.id) || initSigleplayer(socket.id);
+            session = sessionCollection.find(ses => ses.id === socket.id) || initSigleplayer(socket.id, socket);
+            session.labitint = labirint({});
         }
 
         socket.join(session.id);
-        
 
         socket.emit("welcome", { players: session.userCollection, map: session.labitint });
+
+        if (!multiplayer && session.userCollection[socket.id])
+            return;
+        
+        
         for (let a in session.userCollection) {
             // console.log(a, userCollection[a])
             if (session.userCollection[a].name) {
@@ -212,26 +216,30 @@ io.on("connection", (socket) => {
             }
         }
 
-        session.userCollection[socket.id] = {
-            name: "",
-            nick: "",
-            skills: [],
-            exp: 0
-        }
-        console.log('a new user connected', socket.id);
-
-        socket.on("set data", (data) => {
-            if (data && data.name) {
-                session.userCollection[socket.id].name = data.name;
-                io.to(session.id).emit("new player", session.userCollection[socket.id].name)
-            } else {
-                delete session.userCollection[socket.id];
+        
+        
+            session.userCollection[socket.id] = {
+                name: "",
+                nick: "",
+                skills: [],
+                exp: 0
             }
 
-            console.log(data);
-        })
+            socket.on("set data", (data) => {
+                if (data && data.name) {
+                    session.userCollection[socket.id].name = data.name;
+                    io.to(session.id).emit("new player", session.userCollection[socket.id].name)
+                } else {
+                    delete session.userCollection[socket.id];
+                }
+                console.log(data);
+            })
+        
+        
+        console.log('a new user connected', socket.id);
 
         socket.on("direction", (data) => {
+            // console.log(session.userCollection[socket.id])
             session.userCollection[socket.id] && io.to(session.id).emit("move block", {
                 player: session.userCollection[socket.id].name,
                 move: data
@@ -323,6 +331,7 @@ io.on("connection", (socket) => {
             console.log('user disconnected', data, socket.id, session.userCollection);
             if (session.userCollection[socket.id])
                 io.to(session.id).emit("remove user", session.userCollection[socket.id] && session.userCollection[socket.id].name || null)
+                delete session.userCollection[socket.id];
         });
 
     });

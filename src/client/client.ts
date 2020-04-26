@@ -1,7 +1,6 @@
 import * as PIXI from 'pixi.js';
 import io from 'socket.io-client';
 import board from "./keyboard";
-import e = require('express');
 
 const root = document.getElementById("application");
 let currentUser, 
@@ -9,12 +8,17 @@ let currentUser,
     bombs = {},
     bonuses = [],
     explosions = [], 
-    mapBlocks;
+    mapBlocks,
+    level = 1,
+    doorsActivated = false,
+    gameLoopSetuped = false,
+    doorsTimer;
 let players: any = {},
     monsters = [],
     state = null, 
     blocks = [],
-    multiplayer = true;
+    multiplayer = true,
+    doors: any;
 
 let debugCollision: any = {};
 const dev = location && location.hostname == "localhost" || false;
@@ -40,6 +44,7 @@ const mapLayout = new PIXI.Container();
 const playersLayout = new PIXI.Container();
 const monstersLayout = new PIXI.Container();
 const bonusLayout = new PIXI.Container();
+const doorsLayout = new PIXI.Container();
 
 const gameScreen = new PIXI.Container();
 const welcomeScreen = new PIXI.Container();
@@ -70,6 +75,7 @@ try{
   .add("monsters", `${serverUrl}/public/12.gif`)
   .add("expload", `${serverUrl}/public/exploade.png`)
   .add("startsceen", `${serverUrl}/public/startscreen.png`)
+  .add("doors", `${serverUrl}/public/doors.png`)
   .on("progress", loadProgressHandler)
   .load(setupView);
 } catch(e){
@@ -128,12 +134,32 @@ function setupView() {
   gameScreen.visible = false;
   gameOverScreen.visible = false;
 
+  const playAgain = createButton({
+    text: "Play again?",
+    width: 220,
+    height: 36,
+    x: 230,
+    y: 410
+  }, () => {
+    welcomeScreen.visible = false;
+      gameScreen.visible = true;
+      gameOverScreen.visible = false;
+      clearInterval(doorsTimer);
+      doorsActivated = false;
+      cleanMap();
+      socket.emit("start", { multiplayer, level });
+  })
+
+  gameOverScreen.addChild(playAgain);
+
   gameScreen.addChild(backLayot);
   gameScreen.addChild(bombsLayot);
+  gameScreen.addChild(doorsLayout);
   gameScreen.addChild(mapLayout);
   gameScreen.addChild(bonusLayout);
   gameScreen.addChild(playersLayout);
   gameScreen.addChild(monstersLayout);
+
 
   let T = resources["startsceen"].texture.baseTexture;
   let welcomeBackground = new Sprite(new PIXI.Texture(T));
@@ -152,7 +178,7 @@ function setupView() {
       gameScreen.visible = true;
       gameOverScreen.visible = false;
       multiplayer = false;
-      socket.emit("start", { multiplayer });
+      socket.emit("start", { multiplayer, level });
   })
 
   const multyPlayer = createButton({
@@ -173,6 +199,120 @@ function setupView() {
   welcomeScreen.addChild(welcomeBackground)
   welcomeScreen.addChild(singlePlayer);
   welcomeScreen.addChild(multyPlayer);
+
+  let left = board("ArrowLeft"),
+  up = board("ArrowUp"),
+  right = board("ArrowRight"),
+  down = board("ArrowDown"),
+  space = board(" "),
+  enter = board("Enter"),
+  debug = board("d")
+
+debug.press = () => {
+  console.log({
+    players,
+    currentUser,
+    bonuses,
+    monsters,
+    doors,
+    playersLayout,
+  })
+}
+
+space.press = enter.press = () => {
+
+  if (!players[currentUser]) return;
+  let count = 0;
+
+  for (let bombId in bombs) {
+    if (bombs[bombId].player === players[currentUser].name) {
+      count++;
+    }
+  }
+  // console.log(count, players[currentUser])
+
+  if (count < players[currentUser].bombCount) {
+    const shiftX = players[currentUser].x % 40;
+    const shiftY = players[currentUser].y % 40;
+    socket.emit('bomb', {
+      x: players[currentUser].x - (shiftX > 20 ? -(40 - shiftX) : shiftX),
+      y: players[currentUser].y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
+      level: players[currentUser].bombLevel,
+      player: players[currentUser].name,
+    })
+
+  } else {
+    // console.log("too many boombs", count, players[currentUser].bombCount)
+  }
+}
+
+left.press = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    x: -players[currentUser].speed,
+    // y : 0
+  });
+
+};
+
+left.release = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    x: 0,
+    // y : 0
+  });
+};
+
+//Up
+up.press = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    y: -players[currentUser].speed,
+    // x : 0
+  });
+};
+up.release = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    // x : 0,
+    y: 0
+  });
+};
+
+//Right
+right.press = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    x: players[currentUser].speed,
+    // y : 0
+  });
+};
+right.release = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    x: 0,
+    // y : 0
+  });
+
+
+};
+
+//Down
+down.press = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    // x : 0,
+    y: players[currentUser].speed
+  });
+};
+
+down.release = () => {
+  if (!players[currentUser]) return;
+  socket.emit('direction', {
+    // x : 0,
+    y: 0
+  });
+};
 }
 
 socket.on('movement', function (msg) {
@@ -301,12 +441,7 @@ function explodeBomb({ id, level }, time = 900) {
       }
     });
 
-    monsters.forEach((m) => {
-      if ((hitTestRectangle(m, explodeHorizontal) || hitTestRectangle(m, explodeVertical))) {
-        monsters.splice(monsters.findIndex((i) => i === m),1);
-        monstersLayout.removeChild(m);
-      }
-    })
+
 
 
   for (let id in bombs) {
@@ -973,7 +1108,8 @@ function contain(sprite, container) {
 }
 
 function gameLoop(delta) {
-  state(delta);
+  // if (!gameLoopSetuped)
+    state(delta);
 }
 
 function createBlock(type, i, j, cell, color = 0xabaaac, border = 0x18181a) {
@@ -1088,7 +1224,7 @@ function labirint(cell = 40) {
 }
 
 function bonusAppearHandler({id, type ,x ,y }) {
-  // console.log('bonusAppearHandler',x,y);
+  console.log('bonusAppearHandler',x,y);
   let bonus = new PIXI.Container() as any;
   let tileTitle = "bomblevel";
 
@@ -1172,13 +1308,57 @@ function createMonster(x,y,type) {
   }
 
   monster.addChild(sprite);
-  console.log(monster);
+  // console.log(monster);
   return monster;
 
 }
 
+function createDoors() {
+  doors = new PIXI.Container();
+  let T = resources["doors"].texture.baseTexture;
+  let rect = new PIXI.Rectangle(0,0,16,16);
+  let doorsSprite = new Sprite(new PIXI.Texture(T,rect));
+  doorsSprite.width = doorsSprite.height = 40;
+  doors.addChild(doorsSprite);
+  let x,y;
+
+  while (!x && !y) {
+      let tempX = Math.round(Math.random() * 16)
+      let tempY = Math.round(Math.random() * 16)
+
+      if (mapBlocks[tempY][tempX] === 1) {
+          x = tempX * 40;
+          y = tempY * 40;
+          mapBlocks[tempY][tempX] = 100;
+      }
+  }
+
+  doors.x = x;
+  doors.y = y;
+  doorsLayout.addChild(doors);
+  // console.log(doorsLayout,doors ) 
+}
+
+function activateDoors() {
+  if (doorsActivated) return;
+  doorsActivated = true;
+  let rect1 = new PIXI.Rectangle(0,0,16,16);
+  let rect2 = new PIXI.Rectangle(16,0,16,16);
+  let state = true;
+  doorsTimer = setInterval(() => {
+    if (state) {
+      doors.children[0].texture.frame = rect2;
+    } else {
+      doors.children[0].texture.frame = rect1;
+    }
+    state = !state;
+  }, 500)
+}
+
 function singlePlayerSetup() {
-  createAI(6);
+  createAI(level);
+  // createAI(1);
+  createDoors();
 }
 
 function multiplayerSetup() {
@@ -1187,7 +1367,33 @@ function multiplayerSetup() {
   }, 500);
 }
 
-function setup() {
+function cleanMap() {
+    // currentUser = null; 
+    // let temp = players[currentUser];
+    globalPlayers = []; 
+    bombs = {};
+    bonuses = [];
+    explosions = []; 
+    mapBlocks = [];
+    players = {};
+    monsters = []
+    
+    players[currentUser] = createPlayer(currentUser)
+
+    // state = null; 
+    blocks = [];
+    bombsLayot.removeChildren();
+    doorsLayout.removeChildren();
+    playersLayout.removeChildren();
+    mapLayout.removeChildren();
+    bonusLayout.removeChildren();
+    backLayot.removeChildren();
+    monstersLayout.removeChild(); 
+
+}
+
+function setup() { 
+
   const grass = resources["grass"].texture.baseTexture;
   grass.width = 40;
   grass.height = 40;
@@ -1200,10 +1406,11 @@ function setup() {
     newPlayerHandler(globalPlayers[a].name);
   }
 
-  let playerObj = createPlayer(currentUser);
-
-  players[currentUser] = playerObj;
-  playersLayout.addChild(playerObj);
+  if (!players[currentUser]) {
+    let playerObj = createPlayer(currentUser);
+    players[currentUser] = playerObj;
+  }
+  playersLayout.addChild(players[currentUser]);
 
   if (multiplayer) {
     multiplayerSetup();
@@ -1211,131 +1418,12 @@ function setup() {
     singlePlayerSetup();
   }
 
-  socket.on("new player", (data) => {
-    socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-    newPlayerHandler(data);
-  });
-
-  socket.on("required sync", (data) => {
-    socket.emit('sync positon', { x: playerObj.x, y: playerObj.y })
-  });
-
-  socket.on("lab sync", ({map}) => {
-    mapBlocks = map;
-    labirint();
-  })
-
-  socket.on("reset", () => {
-    location.reload();
-  })
-
-  socket.on("move block", moveBlockHandler);
-  socket.on("remove user", removeUserHandler);
-  socket.on("sync positon", syncPositionHandler);
-  socket.on("bomb", bombHandler);
-
-  socket.on("bonus appear", bonusAppearHandler);
-  socket.on("player hit bonus", playerHitBonusHandler);
-
-  let left = board("ArrowLeft"),
-    up = board("ArrowUp"),
-    right = board("ArrowRight"),
-    down = board("ArrowDown"),
-    space = board(" "),
-    enter = board("Enter")
-
-  space.press = enter.press = () => {
-
-    if (!players[currentUser]) return;
-    let count = 0;
-
-    for (let bombId in bombs) {
-      if (bombs[bombId].player === playerObj.name) {
-        count++;
-      }
-    }
-
-    // console.log(count, playerObj)
-
-    if (count < playerObj.bombCount) {
-      const shiftX = playerObj.x % 40;
-      const shiftY = playerObj.y % 40;
-      socket.emit('bomb', {
-        x: playerObj.x - (shiftX > 20 ? -(40 - shiftX) : shiftX),
-        y: playerObj.y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
-        level: playerObj.bombLevel,
-        player: playerObj.name
-      })
-    } else {
-      // console.log("too many boombs", count, playerObj.bombCount)
-    }
+  if (!gameLoopSetuped) {
+    state = play;
+    application.ticker.add(delta => gameLoop(delta));
+    gameLoopSetuped = true;
   }
-
-  left.press = () => {
-    socket.emit('direction', {
-      x: -playerObj.speed,
-      // y : 0
-    });
-
-  };
-
-  left.release = () => {
-    socket.emit('direction', {
-      x: 0,
-      // y : 0
-    });
-  };
-
-  //Up
-  up.press = () => {
-    socket.emit('direction', {
-      y: -playerObj.speed,
-      // x : 0
-    });
-  };
-  up.release = () => {
-    socket.emit('direction', {
-      // x : 0,
-      y: 0
-    });
-  };
-
-  //Right
-  right.press = () => {
-    socket.emit('direction', {
-      x: playerObj.speed,
-      // y : 0
-    });
-  };
-  right.release = () => {
-    socket.emit('direction', {
-      x: 0,
-      // y : 0
-    });
-
-
-  };
-
-  //Down
-  down.press = () => {
-    socket.emit('direction', {
-      // x : 0,
-      y: playerObj.speed
-    });
-  };
-
-  down.release = () => {
-    socket.emit('direction', {
-      // x : 0,
-      y: 0
-    });
-  };
-
-  console.log("All files loaded");
-
-  state = play;
-
-  application.ticker.add(delta => gameLoop(delta));
+  console.log(players,currentUser, players[currentUser], application.ticker.count)
 }
 
 function play(delta) {
@@ -1435,6 +1523,17 @@ function play(delta) {
         }
       }
     }
+
+    explosions.forEach((e) => {
+      if ((hitTestRectangle(m, e) || hitTestRectangle(m, e))) {
+        monsters.splice(monsters.findIndex((i) => i === m),1);
+        monstersLayout.removeChild(m);
+
+        if (monsters.length === 0) {
+          activateDoors();
+        }
+      }
+    })
   })
 
   for (let p in players) {
@@ -1487,6 +1586,12 @@ function play(delta) {
         killPlayer(players[p],p);
       }
     })
+
+    if (doorsActivated && !multiplayer) {
+      if (players[p] && hitTestRectangle(players[p],doors)) {
+        winLevel(players[p]);
+      }
+    }
   }
 
 }
@@ -1494,6 +1599,16 @@ function play(delta) {
 function killPlayer(player,id) {
   console.log(`player "${player.name}" killed emit`, {name: player.name, id: id, typePlayer: player.typePlayer})
   socket.emit("player killed", {name: player.name, id: id, typePlayer: player.typePlayer});
+}
+
+function winLevel(player) {
+  clearInterval(doorsTimer);
+  doorsActivated = false;
+  alert(`Win level ${level}`);
+  level++;
+
+  cleanMap();
+  socket.emit("start", { multiplayer, level });
 }
 
 socket.on("player killed", ({name, id, typePlayer}) => {
@@ -1513,6 +1628,11 @@ socket.on("player killed", ({name, id, typePlayer}) => {
 
   setTimeout(() => {
     playersLayout.removeChild(player);
+    if (name == currentUser) {
+      welcomeScreen.visible = false;
+      gameScreen.visible = false;
+      gameOverScreen.visible = true;
+    }
   }, 1800);
 })
 
@@ -1544,16 +1664,49 @@ socket.on("welcome", ({ players, map }) => {
   globalPlayers = players;
   mapBlocks = map;
 
-  socket.emit('set data', {
-    name: currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
-  });
-
-  socket.emit("required sync");
+  if (!currentUser) {
+    socket.emit('set data', {
+      name: currentUser = prompt("name", "user " + Math.round(Math.random() * 100))
+    });
+  
+    socket.emit("required sync");
+  }
+  
   setTimeout(() => {
     setup();
   }, 0);
   
 })
+
+socket.on("new player", (data) => {
+  if (players[currentUser]) {
+    socket.emit('sync positon', { x: players[currentUser].x, y: players[currentUser].y })
+    newPlayerHandler(data);
+  }
+});
+
+socket.on("required sync", (data) => {
+  if (players[currentUser]) {
+  socket.emit('sync positon', { x: players[currentUser].x, y: players[currentUser].y })
+  }
+});
+
+socket.on("lab sync", ({map}) => {
+  mapBlocks = map;
+  labirint();
+})
+
+socket.on("reset", () => {
+  location.reload();
+})
+
+socket.on("move block", moveBlockHandler);
+socket.on("remove user", removeUserHandler);
+socket.on("sync positon", syncPositionHandler);
+socket.on("bomb", bombHandler);
+
+socket.on("bonus appear", bonusAppearHandler);
+socket.on("player hit bonus", playerHitBonusHandler);
 
 window.addEventListener(
   'load',
