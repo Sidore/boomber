@@ -230,7 +230,7 @@ space.press = enter.press = () => {
     }
   }
   // console.log(count, players[currentUser])
-
+  let id = Math.round(Math.random() * 1000);
   if (count < players[currentUser].bombCount) {
     const shiftX = players[currentUser].x % 40;
     const shiftY = players[currentUser].y % 40;
@@ -239,6 +239,7 @@ space.press = enter.press = () => {
       y: players[currentUser].y - (shiftY > 20 ? -(40 - shiftY) : shiftY),
       level: players[currentUser].bombLevel,
       player: players[currentUser].name,
+      id
     })
 
   } else {
@@ -1286,6 +1287,13 @@ function createAI(count = 6) {
 
 function createMonster(x,y,type) {
   let monster = new PIXI.Container() as any;
+  monster.interactive = true;
+  monster.buttonMode = true;
+  monster.hitArea = new PIXI.Rectangle(0, 0, 40, 40);
+  monster.clicl = () => {
+    console.log("moster", monster)
+  }
+  
   
   let T = resources["monsters"].texture.baseTexture;
   let stage1 = new PIXI.Rectangle(8 * 16 + 8, 0, 16, 16);
@@ -1356,7 +1364,7 @@ function activateDoors() {
 }
 
 function singlePlayerSetup() {
-  createAI(level);
+  createAI(level * 3);
   // createAI(1);
   createDoors();
 }
@@ -1370,8 +1378,7 @@ function multiplayerSetup() {
 }
 
 function cleanMap() {
-    // currentUser = null; 
-    // let temp = players[currentUser];
+
     globalPlayers = []; 
     bombs = {};
     bonuses = [];
@@ -1379,10 +1386,7 @@ function cleanMap() {
     mapBlocks = [];
     players = {};
     monsters = []
-    
     players[currentUser] = createPlayer(currentUser)
-
-    // state = null; 
     blocks = [];
     bombsLayot.removeChildren();
     doorsLayout.removeChildren();
@@ -1390,7 +1394,7 @@ function cleanMap() {
     mapLayout.removeChildren();
     bonusLayout.removeChildren();
     backLayot.removeChildren();
-    monstersLayout.removeChild(); 
+    monstersLayout.removeChildren(); 
 
 }
 

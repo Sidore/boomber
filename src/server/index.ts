@@ -187,16 +187,11 @@ function initSigleplayer(id, socket) {
 }
 
 io.on("connection", (socket) => {
-    let name = "";
-    
     socket.on("start", ({ multiplayer }) => {
-
-        // console.log(multiplayer)
         let session: IGameSession
-        // let name: string;
-
+        let name = "";
         if (multiplayer) {
-             session = sessionCollection.find(ses => ses.type === "Multy") || initMultyplayer()
+            session = sessionCollection.find(ses => ses.type === "Multy") || initMultyplayer()
         } else {
             session = sessionCollection.find(ses => ses.id === socket.id) || initSigleplayer(socket.id, socket);
             session.labitint = labirint({});
@@ -204,27 +199,39 @@ io.on("connection", (socket) => {
 
         socket.join(session.id);
 
-        socket.emit("welcome", { players: session.userCollection, map: session.labitint });
+        let aliveUsers = {};
 
-        if (session.userCollection[socket.id])
+        for (let i in session.userCollection) {
+            if (session.userCollection[i] && session.userCollection[i].alive)
+            aliveUsers[i] = session.userCollection[i];
+        }
+
+        socket.emit("welcome", { players: aliveUsers, map: session.labitint });
+
+        if (session.userCollection[socket.id]) {
+            console.log("user play again")
+            session.userCollection[socket.id].alive = true;
             return;
+        } else {
+            console.log("new player", session.userCollection)
+        }
+            
         
         
         for (let a in session.userCollection) {
             // console.log(a, userCollection[a])
             if (session.userCollection[a].name) {
                 console.log(session.userCollection[a].name, "should be displayed to", socket.id)
-                // socket.emit("new player", userCollection[a].name);
+                // socket.emit("new player", session.userCollection[a].name);
             }
         }
 
-        
-        
             session.userCollection[socket.id] = {
                 name,
                 nick: "",
                 skills: [],
-                exp: 0
+                exp: 0,
+                alive: true
             }
 
             socket.on("set data", (data) => {
@@ -251,8 +258,8 @@ io.on("connection", (socket) => {
         socket.on("player killed", ({ name, id }) => {
 
             for(let user in session.userCollection) {
-                if (session.userCollection[user].name === name) {
-                    delete session.userCollection[user];
+                if (session.userCollection[user].name === name && session.type === "Multy") {
+                    session.userCollection[user].alive = false;
                     break;
                 }
             }
