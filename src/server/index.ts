@@ -187,6 +187,7 @@ function initSigleplayer(id, socket) {
 }
 
 io.on("connection", (socket) => {
+    let name = "";
     
     socket.on("start", ({ multiplayer }) => {
 
@@ -220,7 +221,7 @@ io.on("connection", (socket) => {
         
         
             session.userCollection[socket.id] = {
-                name: "",
+                name,
                 nick: "",
                 skills: [],
                 exp: 0
@@ -228,7 +229,7 @@ io.on("connection", (socket) => {
 
             socket.on("set data", (data) => {
                 if (data && data.name) {
-                    session.userCollection[socket.id].name = data.name;
+                    session.userCollection[socket.id].name = name = data.name;
                     io.to(session.id).emit("new player", session.userCollection[socket.id].name)
                 } else {
                     delete session.userCollection[socket.id];
