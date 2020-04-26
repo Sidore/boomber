@@ -135,11 +135,11 @@ function setupView() {
   gameOverScreen.visible = false;
 
   const playAgain = createButton({
-    text: "Play again?",
-    width: 220,
+    text: "Click to play again!",
+    width: 300,
     height: 36,
-    x: 230,
-    y: 350
+    x: 200,
+    y: 320
   }, () => {
     welcomeScreen.visible = false;
       gameScreen.visible = true;
@@ -1290,33 +1290,46 @@ function createMonster(x,y,type) {
   monster.interactive = true;
   monster.buttonMode = true;
   monster.hitArea = new PIXI.Rectangle(0, 0, 40, 40);
-  monster.clicl = () => {
+  monster.click = () => {
     console.log("moster", monster)
   }
-  
-  
-  let T = resources["monsters"].texture.baseTexture;
-  let stage1 = new PIXI.Rectangle(8 * 16 + 8, 0, 16, 16);
 
-  let sprite = new Sprite(new PIXI.Texture(T, stage1));
+  let phase = 0;
+  let phazeShift = 17;
+  let monsterShift = 19;
+  let monsterLocation = type * monsterShift;
+
+  let T = resources["monsters"].texture.baseTexture;
+  let rect = new PIXI.Rectangle(phase * phazeShift, monsterLocation, 16, 18)
+  let sprite = new Sprite(new PIXI.Texture(T, rect));
   sprite.height = sprite.width = 40;
+
+  monster.speed = 1;
+
+  if (type === 1) {
+    monster.speed = 2;
+  }
+
+  if (type === 2) {
+    monster.fly = true;
+  }
 
   monster.x = x;
   monster.y = y;
   monster.vx = 0;
   monster.vy = 0;
   monster.loop = 0;
+  monster.type = type;
 
   if (Math.random() > 0.5) {
-    monster.vx = Math.random() > 0.5 ? 1 : -1;
+    monster.vx = Math.random() > 0.5 ? monster.speed : -monster.speed;
     monster.move = "vx";
   } else {
-    monster.vy = Math.random() > 0.5 ? 1 : -1;
+    monster.vy = Math.random() > 0.5 ? monster.speed : -monster.speed;
     monster.move = "vy";
   }
 
   monster.addChild(sprite);
-  // console.log(monster);
   return monster;
 
 }
@@ -1438,6 +1451,8 @@ function play(delta) {
     m.x += m.vx;
     m.y += m.vy;
 
+    animateMonster(m);
+
     let hitBorders = contain(m, {
       x: 40, y: 40, width: 640, height: 640
     });
@@ -1448,7 +1463,7 @@ function play(delta) {
           m.loop = 0;
           m.vy = 0;
           m.move = "vx";
-          m.vx = Math.random() > 0.5 ? 1 : -1;
+          m.vx = Math.random() > 0.5 ? m.speed : -m.speed;
         } else {
           m.loop++;
           m.vy *= -1;
@@ -1462,7 +1477,7 @@ function play(delta) {
           m.loop = 0;
           m.vx = 0;
           m.move = "vy";
-          m.vy = Math.random() > 0.5 ? 1 : -1;
+          m.vy = Math.random() > 0.5 ? m.speed : -m.speed;
         } else {
           m.loop++;
           m.vx *= -1;
@@ -1470,7 +1485,9 @@ function play(delta) {
       }
     }
 
+
     blocks.forEach(block => {
+      if (block.type === 1 && m.fly) return;
       let hit = rectangleCollision(m, block)
       if (hit === "top" || hit === "bottom") {
         if (m.move === "vy") {
@@ -1478,7 +1495,7 @@ function play(delta) {
             m.loop = 0;
             m.vy = 0;
             m.move = "vx";
-            m.vx = Math.random() > 0.5 ? 1 : -1;
+            m.vx = Math.random() > 0.5 ? m.speed : -m.speed;
           } else {
             m.loop++;
             m.vy *= -1;
@@ -1491,7 +1508,7 @@ function play(delta) {
             m.loop = 0;
             m.vx = 0;
             m.move = "vy";
-            m.vy = Math.random() > 0.5 ? 1 : -1;
+            m.vy = Math.random() > 0.5 ? m.speed : -m.speed;
           } else {
             m.loop++;
             m.vx *= -1;
@@ -1508,7 +1525,7 @@ function play(delta) {
             m.loop = 0;
             m.vy = 0;
             m.move = "vx";
-            m.vx = Math.random() > 0.5 ? 1 : -1;
+            m.vx = Math.random() > 0.5 ? m.speed : -m.speed;
           } else {
             m.loop++;
             m.vy *= -1;
@@ -1521,7 +1538,7 @@ function play(delta) {
             m.loop = 0;
             m.vx = 0;
             m.move = "vy";
-            m.vy = Math.random() > 0.5 ? 1 : -1;
+            m.vy = Math.random() > 0.5 ? m.speed : -m.speed;
           } else {
             m.loop++;
             m.vx *= -1;
@@ -1532,8 +1549,8 @@ function play(delta) {
 
     explosions.forEach((e) => {
       if ((hitTestRectangle(m, e) || hitTestRectangle(m, e))) {
-        monsters.splice(monsters.findIndex((i) => i === m),1);
-        monstersLayout.removeChild(m);
+
+        killMonster(m);
 
         if (monsters.length === 0) {
           activateDoors();
@@ -1607,6 +1624,32 @@ function killPlayer(player,id) {
   socket.emit("player killed", {name: player.name, id: id, typePlayer: player.typePlayer});
 }
 
+function killMonster(monster) {
+  monsters.splice(monsters.findIndex((i) => i === monster),1);
+
+  let phase = 3;
+  let phazeShift = 17;
+  let monsterShift = 19;
+  let monsterLocation = monster.type * monsterShift;
+
+  let rect = new PIXI.Rectangle(phase * phazeShift, monsterLocation, 16, 18)
+  monster.children[0].texture.frame = rect;
+
+  for (phase = 4; phase < 7; phase++) {
+    setTimeout((p) => {
+      rect = new PIXI.Rectangle(p * phazeShift, monsterLocation, 16, 18);
+      monster.children[0].texture.frame = rect;
+    }, 300 * (phase - 3), phase);
+  }
+
+  setTimeout(() => {
+    monstersLayout.removeChild(monster);
+  }, 1500);
+
+
+  
+}
+
 function winLevel(player) {
   clearInterval(doorsTimer);
   doorsActivated = false;
@@ -1663,6 +1706,21 @@ function animatePlayer(player,id) {
     let rectangle = new PIXI.Rectangle(player.typePlayer * 24, 0 * 24, 24, 24);
     players[id].children[0].texture.frame = rectangle;
   }
+}
+
+function animateMonster(monster) {
+  const time = 1200;
+  const ct = +new Date() % time;
+  const phase =  ct < (time / 4) ? 0 : 
+                  ct < (time / 2) ? 1 :
+                  ct < (time / 4 * 3) ? 2 : 1;
+
+  // let phase = 0;
+  let phazeShift = 17;
+  let monsterShift = 19;
+  let monsterLocation = monster.type * monsterShift;
+  let rect = new PIXI.Rectangle(phase * phazeShift, monsterLocation, 16, 18)
+  monster.children[0].texture.frame = rect;
 }
 
 socket.on("welcome", ({ players, map }) => {
