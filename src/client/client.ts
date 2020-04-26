@@ -1363,7 +1363,9 @@ function singlePlayerSetup() {
 
 function multiplayerSetup() {
   setInterval(() => {
-    socket.emit('sync positon', { x: players[currentUser].x, y: players[currentUser].y })
+    if (players[currentUser]) {
+      socket.emit('sync positon', { x: players[currentUser].x, y: players[currentUser].y })
+    }
   }, 500);
 }
 
